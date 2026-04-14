@@ -3,3 +3,4 @@ fotos_asistencia/
 __pycache__/
 .streamlite/secrets.toml
 corralia_bakup.sql
+corralia_backup.sql
