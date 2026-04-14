@@ -10,12 +10,13 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # ─── Base de datos ────────────────────────────────────────────────────────────
+# ─── Base de datos ────────────────────────────────────────────────────────────
 DB_CONFIG = {
-    "host":     os.getenv("DB_HOST", "localhost"),
-    "port":     int(os.getenv("DB_PORT", 3306)),
-    "database": os.getenv("DB_NAME", "rancho_yanez"),
-    "user":     os.getenv("DB_USER", "root"),
-    "password": os.getenv("DB_PASSWORD", "root"),
+    "host":     os.getenv("DB_HOST",     "monorail.proxy.rlwy.net"),
+    "port":     int(os.getenv("DB_PORT", "20771")),
+    "database": os.getenv("DB_NAME",     "railway"),
+    "user":     os.getenv("DB_USER",     "root"),
+    "password": os.getenv("DB_PASSWORD", "nULjTZmRBHfDIHPrEkgASAOXtsUPCCdf"),
     "charset":  "utf8mb4",
     "autocommit": False,
 }
@@ -105,3 +106,10 @@ TIPOS_EVENTO = ["ENTRADA", "PARTO", "TRASPASO", "VENTA", "MUERTE", "CAMBIO_ESTAD
 
 # ─── Tipos de alerta ─────────────────────────────────────────────────────────
 TIPOS_ALERTA = ["CAPACIDAD", "ESTADO_ANIMAL", "FOTO_PENDIENTE", "PARTO_PROXIMO"]
+
+# ─── Cloudinary (fotos de asistencia) ────────────────────────────────────────
+CLOUDINARY_CONFIG = {
+    "cloud_name": os.getenv("CLOUDINARY_CLOUD_NAME", "du617gti2"),
+    "api_key":    os.getenv("CLOUDINARY_API_KEY",    "487483857463937"),
+    "api_secret": os.getenv("CLOUDINARY_API_SECRET", "8ObYI8HkkWM3baNEj8t1WJhTKC0"),
+}
