@@ -67,7 +67,6 @@ def mostrar_login():
                 st.error("PIN incorrecto.")
                 return
             if _es_primer_acceso(usuario):
-                # Guardar en sesion para la pantalla de activacion
                 st.session_state["activar_usuario"] = usuario
                 st.rerun()
             else:
@@ -117,7 +116,6 @@ def mostrar_primer_acceso():
             if nuevo_pin != confirma_pin:
                 st.error("Los PINes no coinciden.")
                 return
-            # Verificar que el PIN no este en uso
             existente = fetch_one("SELECT id FROM usuarios WHERE pin = %s AND id != %s",
                                   (nuevo_pin, usuario["id"]))
             if existente:
@@ -143,8 +141,6 @@ def mostrar_primer_acceso():
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 def mostrar_sidebar():
-    from streamlit_autorefresh import st_autorefresh
-    st_autorefresh(interval=15000, key="sidebar_refresh")
     rol = st.session_state.usuario_rol
 
     with st.sidebar:
@@ -161,18 +157,15 @@ def mostrar_sidebar():
         st.markdown("---")
         st.markdown("**Navegacion**")
 
-        # Mapa — todos lo ven
         if st.button("🗺️ Mapa de corrales", use_container_width=True):
             st.session_state.pagina = "mapa"
             st.rerun()
 
-        # Traspasos — todos excepto ayudante_general
         if rol != "ayudante_general":
             if st.button("🔄 Traspasos", use_container_width=True):
                 st.session_state.pagina = "traspaso"
                 st.rerun()
 
-        # Reportes y Configuracion — solo admin
         if rol == "admin":
             if st.button("📊 Reportes", use_container_width=True):
                 st.session_state.pagina = "reportes"
@@ -186,7 +179,6 @@ def mostrar_sidebar():
 
         st.markdown("---")
 
-        # Boton de salida para todos excepto admin
         if rol != "admin":
             from modulos.checador import ya_checo_hoy, ya_registro_salida
             if ya_checo_hoy(st.session_state.usuario_id):
@@ -220,6 +212,8 @@ def routear_pagina():
     pagina = st.session_state.pagina
 
     if pagina == "mapa":
+        from streamlit_autorefresh import st_autorefresh
+        st_autorefresh(interval=60000, key="mapa_refresh")
         from modulos.mapa import mostrar_mapa
         mostrar_mapa()
 
@@ -257,7 +251,6 @@ def routear_pagina():
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 def main():
-    # Primer acceso pendiente
     if "activar_usuario" in st.session_state and st.session_state["activar_usuario"]:
         mostrar_primer_acceso()
         return
@@ -268,7 +261,6 @@ def main():
 
     mostrar_sidebar()
 
-    # Checador — todos excepto admin deben checar entrada antes de operar
     if st.session_state.usuario_rol != "admin":
         from modulos.checador import ya_checo_hoy
         if not ya_checo_hoy(st.session_state.usuario_id):
