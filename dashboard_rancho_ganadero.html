@@ -1,0 +1,320 @@
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+.d{padding:1.25rem 0;font-family:var(--font-sans)}
+.topbar{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.5rem}
+.ranch-title{font-size:20px;font-weight:500;color:var(--color-text-primary)}
+.ranch-sub{font-size:12px;color:var(--color-text-secondary);margin-top:3px}
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:500;padding:4px 12px;border-radius:20px}
+.pill-green{background:#EAF3DE;color:#27500A}
+.pill-amber{background:#FAEEDA;color:#633806}
+.pill-red{background:#FCEBEB;color:#791F1F}
+.pill-blue{background:#E6F1FB;color:#0C447C}
+.sec{font-size:10px;font-weight:500;letter-spacing:.07em;text-transform:uppercase;color:var(--color-text-tertiary);margin:1.4rem 0 .65rem}
+.kpi4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.kpi{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:.9rem 1rem}
+.kl{font-size:11px;color:var(--color-text-secondary);margin-bottom:5px}
+.kv{font-size:24px;font-weight:500;color:var(--color-text-primary);line-height:1}
+.kd{font-size:11px;margin-top:4px}
+.up{color:#27500A}.dn{color:#A32D2D}.nt{color:var(--color-text-secondary)}
+.row2{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:12px;margin-top:12px}
+.row3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:12px}
+.card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:1rem 1.15rem}
+.ct{font-size:13px;font-weight:500;color:var(--color-text-primary);margin-bottom:.85rem;display:flex;justify-content:space-between;align-items:center}
+.ct-action{font-size:11px;color:var(--color-text-info);cursor:pointer;font-weight:400}
+.tbl{width:100%;border-collapse:collapse;font-size:12px}
+.tbl th{font-size:10px;font-weight:500;color:var(--color-text-tertiary);text-align:left;padding:0 0 7px;letter-spacing:.05em;text-transform:uppercase}
+.tbl td{padding:7px 0;border-top:0.5px solid var(--color-border-tertiary);color:var(--color-text-primary);vertical-align:middle}
+.tbl tr:first-child td{border-top:none}
+.tbl td.num{text-align:right;font-variant-numeric:tabular-nums}
+.tbl td.muted{color:var(--color-text-secondary)}
+.ani-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary)}
+.ani-row:last-child{border-bottom:none}
+.ani-circle{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:500;flex-shrink:0}
+.ani-info{flex:1}
+.ani-name{font-size:13px;font-weight:500;color:var(--color-text-primary)}
+.ani-detail{font-size:11px;color:var(--color-text-secondary);margin-top:1px}
+.ani-count{font-size:18px;font-weight:500;color:var(--color-text-primary)}
+.bar-row{display:flex;align-items:center;gap:8px;margin-bottom:9px}
+.bar-label{font-size:12px;color:var(--color-text-secondary);width:90px;flex-shrink:0}
+.bar-track{flex:1;height:7px;background:var(--color-background-secondary);border-radius:4px;overflow:hidden}
+.bar-fill{height:100%;border-radius:4px;transition:width .4s}
+.bar-val{font-size:12px;font-weight:500;color:var(--color-text-primary);min-width:48px;text-align:right}
+.alert-item{display:flex;align-items:flex-start;gap:9px;padding:7px 0;border-bottom:0.5px solid var(--color-border-tertiary)}
+.alert-item:last-child{border-bottom:none}
+.alert-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-top:4px}
+.alert-body{flex:1}
+.alert-title{font-size:12px;color:var(--color-text-primary)}
+.alert-sub{font-size:11px;color:var(--color-text-secondary);margin-top:1px}
+.alert-date{font-size:11px;color:var(--color-text-tertiary);flex-shrink:0}
+.mini3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px}
+.mini{border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:.6rem .75rem}
+.mini-l{font-size:10px;color:var(--color-text-secondary)}
+.mini-v{font-size:15px;font-weight:500;color:var(--color-text-primary);margin-top:2px}
+.chart-bars{display:flex;align-items:flex-end;gap:5px;height:88px;margin-top:6px}
+.cb-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px}
+.cb{width:100%;border-radius:3px 3px 0 0}
+.cb-lbl{font-size:10px;color:var(--color-text-tertiary)}
+.divider{height:0.5px;background:var(--color-border-tertiary);margin:10px 0}
+</style>
+
+<div class="d">
+  <div class="topbar">
+    <div>
+      <div class="ranch-title">Rancho La Esperanza</div>
+      <div class="ranch-sub">Ganadero · Oficina principal · Lunes, 10 de julio 2025</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+      <span class="pill pill-green">Inventario saludable</span>
+      <span class="pill pill-amber">2 alertas pendientes</span>
+    </div>
+  </div>
+
+  <div class="sec">Resumen financiero — julio 2025</div>
+  <div class="kpi4">
+    <div class="kpi">
+      <div class="kl">Ingresos del mes</div>
+      <div class="kv">$218,500</div>
+      <div class="kd up">+9% vs junio</div>
+    </div>
+    <div class="kpi">
+      <div class="kl">Gastos operativos</div>
+      <div class="kv">$104,200</div>
+      <div class="kd dn">+3% vs junio</div>
+    </div>
+    <div class="kpi">
+      <div class="kl">Utilidad neta</div>
+      <div class="kv">$114,300</div>
+      <div class="kd up">+15% vs junio</div>
+    </div>
+    <div class="kpi">
+      <div class="kl">Valor del hato estimado</div>
+      <div class="kv">$4.2 M</div>
+      <div class="kd nt">172 cabezas · precio mercado</div>
+    </div>
+  </div>
+
+  <div class="row2">
+    <div class="card">
+      <div class="ct">
+        Inventario ganadero completo
+        <span class="pill pill-blue">172 cabezas totales</span>
+      </div>
+      <div class="ani-row">
+        <div class="ani-circle" style="background:#EAF3DE;color:#3B6D11">VA</div>
+        <div class="ani-info">
+          <div class="ani-name">Vacas adultas</div>
+          <div class="ani-detail">Hato base · 68% preñadas</div>
+        </div>
+        <div class="ani-count">118</div>
+      </div>
+      <div class="ani-row">
+        <div class="ani-circle" style="background:#FAEEDA;color:#854F0B">BE</div>
+        <div class="ani-info">
+          <div class="ani-name">Becerros / becerras</div>
+          <div class="ani-detail">6 nacidos este mes</div>
+        </div>
+        <div class="ani-count">28</div>
+      </div>
+      <div class="ani-row">
+        <div class="ani-circle" style="background:#E6F1FB;color:#185FA5">TO</div>
+        <div class="ani-info">
+          <div class="ani-name">Toros reproductores</div>
+          <div class="ani-detail">Ratio 1:20 hembras</div>
+        </div>
+        <div class="ani-count">6</div>
+      </div>
+      <div class="ani-row">
+        <div class="ani-circle" style="background:#EEEDFE;color:#534AB7">VQ</div>
+        <div class="ani-info">
+          <div class="ani-name">Vaquillas de reemplazo</div>
+          <div class="ani-detail">Listas para empadre en 3 meses</div>
+        </div>
+        <div class="ani-count">14</div>
+      </div>
+      <div class="ani-row">
+        <div class="ani-circle" style="background:#F1EFE8;color:#444441">CA</div>
+        <div class="ani-info">
+          <div class="ani-name">Caballos de trabajo</div>
+          <div class="ani-detail">3 sillas · 3 yeguas</div>
+        </div>
+        <div class="ani-count">6</div>
+      </div>
+      <div class="divider"></div>
+      <div class="mini3">
+        <div class="mini"><div class="mini-l">Nacimientos (mes)</div><div class="mini-v">6</div></div>
+        <div class="mini"><div class="mini-l">Ventas (mes)</div><div class="mini-v">12 cab.</div></div>
+        <div class="mini"><div class="mini-l">Mortalidad (año)</div><div class="mini-v" style="color:#A32D2D">1.2%</div></div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div class="card">
+        <div class="ct">Alertas sanitarias y operativas</div>
+        <div class="alert-item">
+          <div class="alert-dot" style="background:#E24B4A"></div>
+          <div class="alert-body">
+            <div class="alert-title">Vacunación brucelosis — 34 cabezas</div>
+            <div class="alert-sub">Vence el permiso de movilización</div>
+          </div>
+          <div class="alert-date">En 4 días</div>
+        </div>
+        <div class="alert-item">
+          <div class="alert-dot" style="background:#EF9F27"></div>
+          <div class="alert-body">
+            <div class="alert-title">Vaca #47 — seguimiento postnatal</div>
+            <div class="alert-sub">Parto complicado el viernes pasado</div>
+          </div>
+          <div class="alert-date">Hoy</div>
+        </div>
+        <div class="alert-item">
+          <div class="alert-dot" style="background:#EF9F27"></div>
+          <div class="alert-body">
+            <div class="alert-title">Revisión báscula de carga</div>
+            <div class="alert-sub">Calibración semestral pendiente</div>
+          </div>
+          <div class="alert-date">Esta semana</div>
+        </div>
+        <div class="alert-item">
+          <div class="alert-dot" style="background:#639922"></div>
+          <div class="alert-body">
+            <div class="alert-title">Empadre temporada — inicio</div>
+            <div class="alert-sub">14 vaquillas listas</div>
+          </div>
+          <div class="alert-date">En 3 meses</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="ct">Insumos críticos en almacén</div>
+        <div class="bar-row">
+          <span class="bar-label">Alimento balanceado</span>
+          <div class="bar-track"><div class="bar-fill" id="b1" style="width:0;background:#639922"></div></div>
+          <span class="bar-val">72%</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label">Sal mineral</span>
+          <div class="bar-track"><div class="bar-fill" id="b2" style="width:0;background:#639922"></div></div>
+          <span class="bar-val">85%</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label">Vacunas (dosis)</span>
+          <div class="bar-track"><div class="bar-fill" id="b3" style="width:0;background:#EF9F27"></div></div>
+          <span class="bar-val">28%</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label">Diésel</span>
+          <div class="bar-track"><div class="bar-fill" id="b4" style="width:0;background:#E24B4A"></div></div>
+          <span class="bar-val">15%</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row3">
+    <div class="card">
+      <div class="ct">Ventas de ganado — semestre</div>
+      <div class="chart-bars" id="vchart"></div>
+      <div style="display:flex;gap:5px;margin-top:4px" id="vlabels"></div>
+    </div>
+
+    <div class="card">
+      <div class="ct">Desglose de gastos — julio</div>
+      <div class="bar-row" style="margin-top:4px">
+        <span class="bar-label">Alimentación</span>
+        <div class="bar-track"><div class="bar-fill" style="width:42%;background:#185FA5"></div></div>
+        <span class="bar-val">$43,800</span>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">Nómina</span>
+        <div class="bar-track"><div class="bar-fill" style="width:35%;background:#185FA5"></div></div>
+        <span class="bar-val">$36,400</span>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">Veterinario</span>
+        <div class="bar-track"><div class="bar-fill" style="width:10%;background:#185FA5"></div></div>
+        <span class="bar-val">$10,500</span>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">Combustible</span>
+        <div class="bar-track"><div class="bar-fill" style="width:8%;background:#185FA5"></div></div>
+        <span class="bar-val">$8,200</span>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">Otros</span>
+        <div class="bar-track"><div class="bar-fill" style="width:5%;background:#B4B2A9"></div></div>
+        <span class="bar-val">$5,300</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="ct">Indicadores clave del hato</div>
+      <table class="tbl">
+        <thead><tr><th>Indicador</th><th style="text-align:right">Valor</th><th style="text-align:right">Meta</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>% preñez</td>
+            <td class="num">68%</td>
+            <td class="num" style="color:#27500A">75%</td>
+          </tr>
+          <tr>
+            <td>Intervalo parto</td>
+            <td class="num">13.2 m</td>
+            <td class="num" style="color:#27500A">12 m</td>
+          </tr>
+          <tr>
+            <td>Peso prom. venta</td>
+            <td class="num">440 kg</td>
+            <td class="num" style="color:#27500A">450 kg</td>
+          </tr>
+          <tr>
+            <td>Precio x kg</td>
+            <td class="num">$42.50</td>
+            <td class="num muted">Mercado</td>
+          </tr>
+          <tr>
+            <td>Mortalidad anual</td>
+            <td class="num" style="color:#A32D2D">1.2%</td>
+            <td class="num" style="color:#27500A">&lt;1%</td>
+          </tr>
+          <tr>
+            <td>Costo x cabeza/mes</td>
+            <td class="num">$606</td>
+            <td class="num muted">—</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+setTimeout(() => {
+  document.getElementById('b1').style.width = '72%';
+  document.getElementById('b2').style.width = '85%';
+  document.getElementById('b3').style.width = '28%';
+  document.getElementById('b4').style.width = '15%';
+}, 300);
+
+const meses = ['Feb','Mar','Abr','May','Jun','Jul'];
+const ventas = [8, 14, 10, 18, 11, 12];
+const maxV = Math.max(...ventas);
+const vc = document.getElementById('vchart');
+const vl = document.getElementById('vlabels');
+ventas.forEach((v,i) => {
+  const h = Math.round((v/maxV)*80);
+  const w = document.createElement('div');
+  w.className='cb-wrap';
+  const b = document.createElement('div');
+  b.className='cb';
+  b.style.cssText=`height:${h}px;background:${i===5?'#639922':'#C0DD97'}`;
+  w.appendChild(b);
+  vc.appendChild(w);
+  const lw = document.createElement('div');
+  lw.className='cb-wrap';
+  const l = document.createElement('div');
+  l.className='cb-lbl';
+  l.textContent=meses[i];
+  lw.appendChild(l);
+  vl.appendChild(lw);
+});
+</script>

@@ -1,0 +1,4 @@
+.env
+fotos_asistencia/
+__pycache__/
+.streamlite/secrets.toml
