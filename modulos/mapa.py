@@ -10,6 +10,7 @@ ZONAS = [
     {"key": "Crecimiento", "icono": "📈"},
 ]
 
+# Mapa de zona segun rol
 ZONA_POR_ROL = {
     "parideras":  ["Parideras"],
     "gestacion":  ["Gestacion"],
@@ -17,6 +18,7 @@ ZONA_POR_ROL = {
 }
 
 def mostrar_mapa():
+
     # Ayudantes generales solo ven el checador de salida
     rol = st.session_state.get("usuario_rol", "admin")
     if rol == "ayudante_general":
@@ -26,8 +28,10 @@ def mostrar_mapa():
 
     st.title("Mapa de Corrales")
 
-    zonas_visibles = ZONA_POR_ROL.get(rol)
+    # Filtrar zonas segun rol
+    zonas_visibles = ZONA_POR_ROL.get(rol)  # None = ve todo
 
+    # Banner criticos
     criticos = get_resumen_criticos()
     msgs = []
     if criticos.get("Herniados", 0) > 0:
@@ -37,20 +41,23 @@ def mostrar_mapa():
     if msgs:
         st.error("  ·  ".join(msgs))
 
+    # Alertas capacidad
     alertas_cap = get_alertas_capacidad()
-    rojos     = [a for a in alertas_cap if a["nivel"] == "rojo"]
+    rojos    = [a for a in alertas_cap if a["nivel"] == "rojo"]
     amarillos = [a for a in alertas_cap if a["nivel"] == "amarillo"]
     if rojos:
         st.error("🚨 Excedidos: " + ", ".join(a["nombre"] for a in rojos))
     if amarillos:
         st.warning("⚠️ Al limite: " + ", ".join(a["nombre"] for a in amarillos))
 
+    # Filtro
     filtro_estado = st.selectbox(
         "Mostrar:", ["Solo ocupados", "Todos"], key="filtro_estado"
     )
 
     st.markdown("---")
 
+    # Metricas globales
     todos = fetch_all("""
         SELECT c.id, c.capacidad_max,
                IFNULL(SUM(l.poblacion_actual),0) AS pob
@@ -69,6 +76,7 @@ def mostrar_mapa():
     st.markdown("---")
 
     for zona in ZONAS:
+        # Si el usuario tiene zona restringida, solo mostrar la suya
         if zonas_visibles and zona["key"] not in zonas_visibles:
             continue
         _renderizar_zona(zona, filtro_estado)
@@ -98,10 +106,11 @@ def _renderizar_zona(zona, filtro_estado):
     if not rows:
         return
 
-    total    = len(rows)
+    total   = len(rows)
     ocupados = sum(1 for r in rows if r["poblacion_actual"] > 0)
     animales = sum(r["poblacion_actual"] for r in rows)
 
+    # Filtrar si aplica
     mostrar = rows if filtro_estado == "Todos" else [r for r in rows if r["poblacion_actual"] > 0]
 
     with st.expander(
@@ -112,6 +121,7 @@ def _renderizar_zona(zona, filtro_estado):
             st.caption("Todos los corrales vacios.")
             return
 
+        # Grid de 4 columnas para aprovechar espacio
         cols = st.columns(4)
         for i, row in enumerate(mostrar):
             with cols[i % 4]:
@@ -124,36 +134,40 @@ def _tarjeta(row):
     area = float(row["area_m2"] or 0)
     pct  = pob / cap
 
+    # Semaforo
     es_exclusivo = any(t in str(row.get("tipo_animal", ""))
                        for t in ["Semental", "Pie de Cr"])
     if pob == 0:
-        color_hex   = "#9E9E9E"
+        color_hex = "#9E9E9E"
         color_barra = "#E0E0E0"
-        estado      = "VACIO"
-        emoji       = "⚫"
+        estado = "VACIO"
+        emoji = "⚫"
     elif es_exclusivo and pob <= cap:
-        color_hex   = "#2E7D32"
+        color_hex = "#2E7D32"
         color_barra = "#4CAF50"
-        estado      = "OCUPADO"
-        emoji       = "🟢"
+        estado = "OCUPADO"
+        emoji = "🟢"
     elif pct >= 1.0:
-        color_hex   = "#C62828"
+        color_hex = "#C62828"
         color_barra = "#EF5350"
-        estado      = "EXCEDIDO"
-        emoji       = "🔴"
+        estado = "EXCEDIDO"
+        emoji = "🔴"
     elif pct >= 0.9:
-        color_hex   = "#F57F17"
+        color_hex = "#F57F17"
         color_barra = "#FFC107"
-        estado      = "AL LIMITE"
-        emoji       = "🟡"
+        estado = "AL LIMITE"
+        emoji = "🟡"
     else:
-        color_hex   = "#2E7D32"
+        color_hex = "#2E7D32"
         color_barra = "#4CAF50"
-        estado      = "OK"
-        emoji       = "🟢"
+        estado = "OK"
+        emoji = "🟢"
 
+    # Barra de capacidad
     pct_barra = min(pct * 100, 100)
+    pct_vacio = 100 - pct_barra
 
+    # Info extra
     parto_html = ""
     if row.get("fecha_parto") and str(row["fecha_parto"]) not in ("None","NaT",""):
         try:
@@ -168,8 +182,13 @@ def _tarjeta(row):
 
     area_str = f"{area:.1f}m²" if area > 0 else ""
 
+    # Tipo de animal para mostrar en tarjeta
     tipo_animal_raw = str(row.get("tipo_animal", ""))
-    tipo_badge = tipo_animal_raw if (pob > 0 and tipo_animal_raw != "VACIO") else ""
+    if pob == 0:
+        tipo_badge = ""
+    else:
+        tipo_badge = tipo_animal_raw if tipo_animal_raw != "VACIO" else ""
+
 
     st.markdown(f"""
     <div style="

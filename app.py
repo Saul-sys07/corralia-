@@ -154,8 +154,6 @@ def mostrar_primer_acceso():
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 def mostrar_sidebar():
-    from streamlit_autorefresh import st_autorefresh
-    st_autorefresh(interval=15000, key="sidebar_refresh")
     rol = st.session_state.usuario_rol
 
     with st.sidebar:
