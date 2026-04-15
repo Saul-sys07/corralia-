@@ -16,10 +16,18 @@ def mostrar_traspaso():
     st.title("Traspasos")
     st.write(f"Operador: **{st.session_state.usuario_nombre}** — {pd.Timestamp.now().strftime('%d/%m/%Y')}")
 
-    # Alertas de verificacion de celo
-    _mostrar_alertas_celo()
+    # Tabs: Traspasos y Muertes
+    tab1, tab2 = st.tabs(["Traspasos", "Registrar Muerte"])
 
-    st.markdown("---")
+    with tab1:
+        _mostrar_alertas_celo()
+        _mostrar_wizard_traspaso()
+
+    with tab2:
+        mostrar_registro_muerte()
+
+
+def _mostrar_wizard_traspaso():
 
     # Inicializar carrito
     if "destinos_temp" not in st.session_state:
@@ -225,3 +233,133 @@ def _mostrar_alertas_celo():
                     st.info("Regresada a Disponible — monta cancelada")
                     time.sleep(1.5)
                     st.rerun()
+
+
+def mostrar_registro_muerte():
+    """Formulario para registrar muertes de animales."""
+    st.markdown("---")
+    st.markdown("### Registrar muerte")
+
+    from modulos.lotes import get_inventario_completo, get_lote
+    from database import execute, fetch_all
+    import cloudinary
+    import cloudinary.uploader
+    from config import CLOUDINARY_CONFIG
+    from datetime import datetime
+
+    cloudinary.config(
+        cloud_name=CLOUDINARY_CONFIG["cloud_name"],
+        api_key=CLOUDINARY_CONFIG["api_key"],
+        api_secret=CLOUDINARY_CONFIG["api_secret"],
+    )
+
+    CAUSAS = [
+        "Hernia",
+        "Aplastamiento", 
+        "Enfermedad",
+        "No logrado",
+        "Causa desconocida",
+        "Otro",
+    ]
+
+    df_inv = pd.DataFrame(get_inventario_completo())
+    df_con_stock = df_inv[df_inv["poblacion_actual"] > 0]
+
+    if df_con_stock.empty:
+        st.info("No hay animales registrados.")
+        return
+
+    col1, col2 = st.columns(2)
+    corral_sel = col1.selectbox(
+        "Corral:", 
+        df_con_stock["corral"].unique().tolist(),
+        key="muerte_corral"
+    )
+
+    datos_corral = df_con_stock[df_con_stock["corral"] == corral_sel].iloc[0]
+    id_corral = int(datos_corral["id"])
+
+    tipos_en_corral = [t.strip() for t in str(datos_corral["tipo_animal"]).split("/") 
+                       if t.strip() and t.strip() != "VACIO"]
+
+    tipo_animal = col2.selectbox(
+        "Tipo de animal:",
+        tipos_en_corral,
+        key="muerte_tipo"
+    )
+
+    lote = get_lote(id_corral, tipo_animal)
+    disponible = int(lote["poblacion_actual"]) if lote else 0
+    col2.caption(f"Disponibles: {disponible}")
+
+    col3, col4 = st.columns(2)
+    cantidad = col3.number_input(
+        "Cantidad muerta:",
+        min_value=1,
+        max_value=disponible,
+        step=1,
+        key="muerte_cantidad"
+    )
+
+    causa = col4.selectbox("Causa:", CAUSAS, key="muerte_causa")
+
+    notas = ""
+    if causa == "Otro":
+        notas = st.text_input("Especifica la causa:", key="muerte_notas")
+
+    # Foto opcional
+    if "camara_muerte_activa" not in st.session_state:
+        st.session_state.camara_muerte_activa = False
+
+    foto_url = None
+    if not st.session_state.camara_muerte_activa:
+        if st.button("Tomar foto (opcional)", key="btn_cam_muerte"):
+            st.session_state.camara_muerte_activa = True
+            st.rerun()
+    else:
+        foto = st.camera_input("Foto de evidencia:", key="cam_muerte")
+        if foto:
+            nombre_foto = f"corralia/muertes/{st.session_state.usuario_nombre}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            resultado = cloudinary.uploader.upload(
+                foto.getbuffer(),
+                public_id=nombre_foto,
+                overwrite=True,
+            )
+            foto_url = resultado["secure_url"]
+            st.session_state.camara_muerte_activa = False
+            st.success("Foto guardada.")
+            st.rerun()
+        if st.button("Sin foto", key="btn_sin_foto_muerte"):
+            st.session_state.camara_muerte_activa = False
+            st.rerun()
+
+    if st.button("Registrar muerte", type="primary", use_container_width=True, key="btn_muerte"):
+        if disponible < cantidad:
+            st.error(f"Solo hay {disponible} animales en ese corral.")
+            return
+
+        # Restar del inventario
+        execute(
+            """UPDATE lotes 
+               SET poblacion_actual = GREATEST(poblacion_actual - %s, 0)
+               WHERE id_chiquero = %s AND tipo_animal = %s""",
+            (cantidad, id_corral, tipo_animal)
+        )
+
+        # Registrar en historial
+        nota_final = f"Causa: {causa}"
+        if notas:
+            nota_final += f" — {notas}"
+
+        execute(
+            """INSERT INTO historial_movimientos 
+               (id_chiquero_destino, tipo_animal, cantidad, tipo_evento, id_usuario, notas, foto_evidencia)
+               VALUES (%s, %s, %s, 'MUERTE', %s, %s, %s)""",
+            (id_corral, tipo_animal, cantidad,
+             st.session_state.usuario_nombre, nota_final, foto_url)
+        )
+
+        st.success(f"{cantidad} {tipo_animal} registrados como muerte. Causa: {causa}")
+        import time
+        time.sleep(1.5)
+        st.rerun()
