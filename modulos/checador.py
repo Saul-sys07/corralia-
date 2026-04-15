@@ -9,26 +9,6 @@ import time
 import os
 from datetime import date, datetime
 from database import fetch_all, fetch_one, execute
-import cloudinary
-import cloudinary.uploader
-from config import CLOUDINARY_CONFIG
-
-# Inicializar Cloudinary
-cloudinary.config(
-    cloud_name = CLOUDINARY_CONFIG["cloud_name"],
-    api_key    = CLOUDINARY_CONFIG["api_key"],
-    api_secret = CLOUDINARY_CONFIG["api_secret"],
-)
-
-def subir_foto_cloudinary(foto_bytes, nombre_usuario: str, tipo: str) -> str:
-    """Sube foto a Cloudinary y devuelve la URL."""
-    nombre_archivo = f"corralia/asistencia/{nombre_usuario}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{tipo}"
-    resultado = cloudinary.uploader.upload(
-        foto_bytes,
-        public_id=nombre_archivo,
-        overwrite=True,
-    )
-    return resultado["secure_url"]
 
 
 def ya_checo_hoy(usuario_id: int) -> bool:
@@ -71,8 +51,10 @@ def mostrar_checador_entrada():
         else:
             foto = st.camera_input("Toma tu foto:")
             if foto:
-                # DESPUÉS
-                nombre_foto = subir_foto_cloudinary(foto.getbuffer(), nombre, "entrada")
+                os.makedirs("fotos_asistencia", exist_ok=True)
+                nombre_foto = f"fotos_asistencia/{nombre}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_entrada.jpg"
+                with open(nombre_foto, "wb") as f:
+                    f.write(foto.getbuffer())
                 execute(
                     "INSERT INTO asistencia (usuario_id, nombre, fecha_entrada, foto_entrada) VALUES (%s, %s, NOW(), %s)",
                     (usuario_id, nombre, nombre_foto)
@@ -126,8 +108,10 @@ def mostrar_registro_salida():
         else:
             foto = st.camera_input("Toma tu foto:")
             if foto:
-                # DESPUÉS
-                nombre_foto = subir_foto_cloudinary(foto.getbuffer(), nombre, "entrada")
+                os.makedirs("fotos_asistencia", exist_ok=True)
+                nombre_foto = f"fotos_asistencia/{nombre}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_salida.jpg"
+                with open(nombre_foto, "wb") as f:
+                    f.write(foto.getbuffer())
                 execute(
                     "UPDATE asistencia SET fecha_salida = NOW(), foto_salida = %s WHERE id = %s",
                     (nombre_foto, registro["id"])
@@ -177,8 +161,10 @@ def mostrar_checador():
         else:
             foto = st.camera_input("Toma tu foto:")
             if foto:
-                # DESPUÉS
-                nombre_foto = subir_foto_cloudinary(foto.getbuffer(), nombre, "entrada")
+                os.makedirs("fotos_asistencia", exist_ok=True)
+                nombre_foto = f"fotos_asistencia/{nombre}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_salida.jpg"
+                with open(nombre_foto, "wb") as f:
+                    f.write(foto.getbuffer())
                 execute(
                     "UPDATE asistencia SET fecha_salida = NOW(), foto_salida = %s WHERE id = %s",
                     (nombre_foto, registro["id"])
