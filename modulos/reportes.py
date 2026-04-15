@@ -13,7 +13,10 @@ from modulos.chiqueros import get_alertas_capacidad
 
 
 def mostrar_reportes():
-    st.title("Reportes")
+    col_titulo, col_refresh = st.columns([5, 1])
+    col_titulo.title("Reportes")
+    if col_refresh.button("🔄 Actualizar", use_container_width=True, key="refresh_reportes"):
+        st.rerun()
     st.caption("Panel exclusivo de administracion - Saul")
 
     tab1, tab2, tab3, tab4, tab5 = st.tabs([
