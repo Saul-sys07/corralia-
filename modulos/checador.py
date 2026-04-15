@@ -1,6 +1,7 @@
 """
 modulos/checador.py - Corralia v3
 Checador de entrada/salida con fotos a Cloudinary y hora Mexico.
+La hora se maneja en Python, no en MySQL, para compatibilidad con Railway.
 """
 
 import streamlit as st
@@ -18,8 +19,11 @@ cloudinary.config(
     api_secret=CLOUDINARY_CONFIG["api_secret"],
 )
 
-def hora_mexico():
-    return datetime.now(ZoneInfo("America/Mexico_City"))
+def hora_mexico() -> datetime:
+    return datetime.now(ZoneInfo("America/Mexico_City")).replace(tzinfo=None)
+
+def fecha_mexico() -> date:
+    return hora_mexico().date()
 
 def subir_foto(foto_bytes, nombre: str, tipo: str) -> str:
     nombre_archivo = f"corralia/asistencia/{nombre}_{hora_mexico().strftime('%Y%m%d_%H%M%S')}_{tipo}"
@@ -32,15 +36,15 @@ def subir_foto(foto_bytes, nombre: str, tipo: str) -> str:
 
 def ya_checo_hoy(usuario_id: int) -> bool:
     row = fetch_one(
-        "SELECT id FROM asistencia WHERE usuario_id = %s AND DATE(CONVERT_TZ(fecha_entrada, '+00:00', '-06:00')) = %s",
-        (usuario_id, hora_mexico().date())
+        "SELECT id FROM asistencia WHERE usuario_id = %s AND DATE(fecha_entrada) = %s",
+        (usuario_id, fecha_mexico())
     )
     return row is not None
 
 def ya_registro_salida(usuario_id: int) -> bool:
     row = fetch_one(
-        "SELECT id FROM asistencia WHERE usuario_id = %s AND DATE(CONVERT_TZ(fecha_entrada, '+00:00', '-06:00')) = %s AND fecha_salida IS NOT NULL",
-        (usuario_id, hora_mexico().date())
+        "SELECT id FROM asistencia WHERE usuario_id = %s AND DATE(fecha_entrada) = %s AND fecha_salida IS NOT NULL",
+        (usuario_id, fecha_mexico())
     )
     return row is not None
 
@@ -69,8 +73,8 @@ def mostrar_checador_entrada():
             if foto:
                 foto_url = subir_foto(foto.getbuffer(), nombre, "entrada")
                 execute(
-                    "INSERT INTO asistencia (usuario_id, nombre, fecha_entrada, foto_entrada) VALUES (%s, %s, CONVERT_TZ(NOW(), '+00:00', '-06:00'), %s)",
-                    (usuario_id, nombre, foto_url)
+                    "INSERT INTO asistencia (usuario_id, nombre, fecha_entrada, foto_entrada) VALUES (%s, %s, %s, %s)",
+                    (usuario_id, nombre, hoy, foto_url)
                 )
                 st.session_state.camara_entrada_activa = False
                 st.success(f"Entrada registrada a las {hoy.strftime('%H:%M')} — Bienvenido.")
@@ -99,8 +103,8 @@ def mostrar_registro_salida():
         st.markdown("---")
 
         registro = fetch_one(
-            "SELECT * FROM asistencia WHERE usuario_id = %s AND DATE(CONVERT_TZ(fecha_entrada, '+00:00', '-06:00')) = %s",
-            (usuario_id, hoy.date())
+            "SELECT * FROM asistencia WHERE usuario_id = %s AND DATE(fecha_entrada) = %s",
+            (usuario_id, fecha_mexico())
         )
 
         if not registro:
@@ -122,8 +126,8 @@ def mostrar_registro_salida():
             if foto:
                 foto_url = subir_foto(foto.getbuffer(), nombre, "salida")
                 execute(
-                    "UPDATE asistencia SET fecha_salida = CONVERT_TZ(NOW(), '+00:00', '-06:00'), foto_salida = %s WHERE id = %s",
-                    (foto_url, registro["id"])
+                    "UPDATE asistencia SET fecha_salida = %s, foto_salida = %s WHERE id = %s",
+                    (hoy, foto_url, registro["id"])
                 )
                 st.session_state.camara_salida_activa = False
                 st.success(f"Salida registrada a las {hoy.strftime('%H:%M')}. Hasta manana.")
@@ -137,7 +141,6 @@ def mostrar_registro_salida():
 
 
 def mostrar_checador():
-    """Vista para ayudantes generales."""
     nombre     = st.session_state.usuario_nombre
     usuario_id = st.session_state.usuario_id
     hoy        = hora_mexico()
@@ -147,8 +150,8 @@ def mostrar_checador():
     st.markdown("---")
 
     registro = fetch_one(
-        "SELECT * FROM asistencia WHERE usuario_id = %s AND DATE(CONVERT_TZ(fecha_entrada, '+00:00', '-06:00')) = %s",
-        (usuario_id, hoy.date())
+        "SELECT * FROM asistencia WHERE usuario_id = %s AND DATE(fecha_entrada) = %s",
+        (usuario_id, fecha_mexico())
     )
 
     ya_salio = registro and registro.get("fecha_salida") is not None
@@ -171,8 +174,8 @@ def mostrar_checador():
             if foto:
                 foto_url = subir_foto(foto.getbuffer(), nombre, "salida")
                 execute(
-                    "UPDATE asistencia SET fecha_salida = CONVERT_TZ(NOW(), '+00:00', '-06:00'), foto_salida = %s WHERE id = %s",
-                    (foto_url, registro["id"])
+                    "UPDATE asistencia SET fecha_salida = %s, foto_salida = %s WHERE id = %s",
+                    (hoy, foto_url, registro["id"])
                 )
                 st.session_state.camara_salida_ay = False
                 st.success(f"Salida registrada — {hoy.strftime('%H:%M')}. Hasta manana.")
