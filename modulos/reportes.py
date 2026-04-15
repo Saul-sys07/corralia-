@@ -160,13 +160,13 @@ def mostrar_reportes():
                     expanded=False
                 ):
                     c1, c2 = st.columns(2)
-                    if r['foto_entrada'] and os.path.exists(r['foto_entrada']):
+                    if r['foto_entrada'] and str(r['foto_entrada']).startswith('http'):
                         c1.markdown("**Entrada**")
                         c1.image(r['foto_entrada'], use_container_width=True)
                     else:
                         c1.caption("Sin foto de entrada")
 
-                    if r['foto_salida'] and os.path.exists(r['foto_salida']):
+                    if r['foto_salida'] and str(r['foto_salida']).startswith('http'):
                         c2.markdown("**Salida**")
                         c2.image(r['foto_salida'], use_container_width=True)
                     else:
