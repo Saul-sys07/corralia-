@@ -1,274 +1,476 @@
 """
-app.py - Corralia v3
-Punto de entrada. Login desde base de datos, primer acceso con PIN propio,
-y routing de paginas segun rol.
+modulos/traspaso.py — Corralia v3
+Wizard de 3 pasos para mover animales entre corrales.
+Beyin lo usa en campo desde el celular.
 """
 
 import streamlit as st
 import time
-from database import fetch_one, execute, test_connection
+import pandas as pd
+from modulos.lotes import get_inventario_completo, mover_animales
+from modulos.chiqueros import get_chiqueros_disponibles_para
+from config import TIPOS_ANIMAL
 
-st.set_page_config(
-    page_title="Corralia v3",
-    page_icon="🐖",
-    layout="wide",
-    initial_sidebar_state="expanded",
-)
 
-# ── Estado de sesion ──────────────────────────────────────────────────────────
-def _init_session():
-    defaults = {
-        "autenticado": False,
-        "usuario_id": None,
-        "usuario_nombre": "",
-        "usuario_rol": "",
-        "pagina": "mapa",
-    }
-    for k, v in defaults.items():
-        if k not in st.session_state:
-            st.session_state[k] = v
+def mostrar_traspaso():
+    st.title("Traspasos")
+    st.write(f"Operador: **{st.session_state.usuario_nombre}** — {pd.Timestamp.now().strftime('%d/%m/%Y')}")
 
-_init_session()
+    # Tabs: Traspasos, Muertes, Cambio de Etapa y Ventas
+    tab1, tab2, tab3, tab4 = st.tabs(["Traspasos", "Registrar Muerte", "Cambiar Etapa", "Venta"])
 
-# ── Helpers de usuario ────────────────────────────────────────────────────────
-def _buscar_usuario(pin: str):
-    return fetch_one("SELECT * FROM usuarios WHERE pin = %s AND activo = 1", (pin,))
+    with tab1:
+        _mostrar_alertas_celo()
+        _mostrar_wizard_traspaso()
 
-def _es_primer_acceso(usuario: dict) -> bool:
-    return bool(usuario.get("primer_acceso"))
+    with tab2:
+        mostrar_registro_muerte()
 
-def _activar_usuario(usuario_id: int, nuevo_pin: str):
-    execute(
-        "UPDATE usuarios SET pin = %s, pin_temporal = NULL, primer_acceso = 0 WHERE id = %s",
-        (nuevo_pin, usuario_id)
-    )
+    with tab3:
+        mostrar_cambio_etapa()
 
-def _registrar_acceso(usuario_id: int):
-    execute(
-        "UPDATE usuarios SET ultimo_acceso = NOW() WHERE id = %s",
-        (usuario_id,)
-    )
+    with tab4:
+        from modulos.ventas import mostrar_registro_venta
+        mostrar_registro_venta()
 
-# ── Pantalla de login ─────────────────────────────────────────────────────────
-def mostrar_login():
-    col = st.columns([1, 2, 1])[1]
-    with col:
-        st.markdown("## 🐖 Corralia v3")
-        st.markdown("**Rancho Yanez — Atlacomulco, Edo. Mex.**")
-        st.markdown("---")
-        pin = st.text_input("PIN de acceso:", type="password",
-                            placeholder="••••", autocomplete="off")
-        if st.button("Ingresar", use_container_width=True, type="primary"):
-            if not pin:
-                st.error("Ingresa tu PIN.")
-                return
-            usuario = _buscar_usuario(pin)
-            if not usuario:
-                st.error("PIN incorrecto.")
-                return
-            if _es_primer_acceso(usuario):
-                st.session_state["activar_usuario"] = usuario
-                st.rerun()
-            else:
-                _registrar_acceso(usuario["id"])
-                st.session_state.autenticado    = True
-                st.session_state.usuario_id     = usuario["id"]
-                st.session_state.usuario_nombre = usuario["nombre"]
-                st.session_state.usuario_rol    = usuario["rol"]
-                st.session_state.pagina         = "mapa"
-                st.rerun()
 
-# ── Pantalla de primer acceso ─────────────────────────────────────────────────
-def mostrar_primer_acceso():
-    usuario = st.session_state.get("activar_usuario")
-    if not usuario:
-        st.session_state.pop("activar_usuario", None)
-        st.rerun()
+def _mostrar_wizard_traspaso():
+
+    # Inicializar carrito
+    if "destinos_temp" not in st.session_state:
+        st.session_state.destinos_temp = []
+
+    # ── PASO 1: Origen ────────────────────────────────────────────────────────
+    st.markdown("### 1. ¿De dónde salen?")
+    df_inv = pd.DataFrame(get_inventario_completo())
+    df_con_stock = df_inv[df_inv["poblacion_actual"] > 0]
+
+    if df_con_stock.empty:
+        st.info("No hay animales registrados. Ve a Configuración para registrar el inventario.")
         return
 
-    col = st.columns([1, 2, 1])[1]
-    with col:
-        st.markdown("## 🐖 Bienvenido a Corralia")
-        st.markdown(f"Hola **{usuario['nombre']}** — es tu primer acceso.")
-        st.info("Crea tu PIN personal. Solo tu lo vas a saber — si lo compartes y pasa algo, el sistema registra tu nombre.")
-        st.markdown("---")
+    origen_nombre = st.selectbox(
+        "Corral de origen:",
+        df_con_stock["corral"].unique().tolist(),
+        key="origen_sel"
+    )
+    datos_origen = df_con_stock[df_con_stock["corral"] == origen_nombre].iloc[0]
+    id_origen    = int(datos_origen["id"])
 
-        nuevo_pin    = st.text_input("Crea tu PIN personal:", type="password",
-                                     placeholder="Minimo 4 digitos", autocomplete="off")
-        confirma_pin = st.text_input("Confirma tu PIN:", type="password",
-                                     placeholder="Repite tu PIN", autocomplete="off")
+    # Tipos presentes en ese corral
+    tipos_en_corral = [t.strip() for t in str(datos_origen["tipo_animal"]).split("/") if t.strip() and t.strip() != "VACÍO"]
 
-        zonas_disponibles = {
-            "parideras":         "Parideras",
-            "crecimiento":       "Crecimiento",
-            "gestacion":         "Gestacion",
-            "encargado_general": "Encargado General",
-            "admin":             "Administrador",
-        }
-        zona_actual = usuario.get("rol", "crecimiento")
-        zona_label  = zonas_disponibles.get(zona_actual, zona_actual)
-        st.markdown(f"**Tu zona asignada:** {zona_label}")
+    if not tipos_en_corral:
+        st.warning("Este corral no tiene animales.")
+        return
 
-        if st.button("Activar mi acceso", type="primary", use_container_width=True):
-            if not nuevo_pin or len(nuevo_pin) < 4:
-                st.error("El PIN debe tener al menos 4 digitos.")
-                return
-            if nuevo_pin != confirma_pin:
-                st.error("Los PINes no coinciden.")
-                return
-            existente = fetch_one("SELECT id FROM usuarios WHERE pin = %s AND id != %s",
-                                  (nuevo_pin, usuario["id"]))
-            if existente:
-                st.error("Ese PIN ya lo usa otra persona. Elige otro.")
-                return
+    # ── PASO 2: Qué se mueve ──────────────────────────────────────────────────
+    st.markdown("### 2. ¿Qué se mueve?")
+    col_tipo, col_cant = st.columns(2)
 
-            _activar_usuario(usuario["id"], nuevo_pin)
-            _registrar_acceso(usuario["id"])
+    tipo_a_mover = col_tipo.selectbox("Tipo de animal:", tipos_en_corral, key="tipo_sel")
 
-            st.session_state.pop("activar_usuario", None)
-            st.session_state.autenticado    = True
-            st.session_state.usuario_id     = usuario["id"]
-            st.session_state.usuario_nombre = usuario["nombre"]
-            st.session_state.usuario_rol    = usuario["rol"]
-            st.session_state.pagina         = "mapa"
-            st.success("Acceso activado. Bienvenido.")
-            time.sleep(1)
-            st.rerun()
+    # Buscar población disponible de ese tipo específico
+    from modulos.lotes import get_lote
+    lote_sel = get_lote(id_origen, tipo_a_mover)
+    disponible = int(lote_sel["poblacion_actual"]) if lote_sel else 0
 
-        if st.button("Cancelar", use_container_width=True):
-            st.session_state.pop("activar_usuario", None)
-            st.rerun()
+    col_tipo.caption(f"Disponibles: **{disponible}** {tipo_a_mover}")
 
-# ── Sidebar ───────────────────────────────────────────────────────────────────
-def mostrar_sidebar():
-    rol = st.session_state.usuario_rol
+    cantidad = col_cant.number_input(
+        "Cantidad a mover:",
+        min_value=1,
+        max_value=disponible,
+        step=1,
+        key="cant_sel"
+    )
 
-    with st.sidebar:
-        st.markdown("### 🐖 Corralia v3")
-        st.markdown(f"**{st.session_state.usuario_nombre}**")
-        st.caption(_label_rol(rol))
+    # ── Cambio de etapa ───────────────────────────────────────────────────────
+    st.markdown("### 3. ¿Avanzan de etapa o se quedan igual?")
+    cambiar_etapa = st.toggle("Cambian de etapa en el destino", value=False, key="toggle_etapa")
 
-        ok, _ = test_connection()
-        if ok:
-            st.success("DB conectada", icon="✅")
+    tipo_destino = tipo_a_mover
+    if cambiar_etapa:
+        idx_actual = TIPOS_ANIMAL.index(tipo_a_mover) if tipo_a_mover in TIPOS_ANIMAL else 0
+        opciones_avance = TIPOS_ANIMAL[idx_actual:]
+        tipo_destino = st.selectbox("Nueva etapa en destino:", opciones_avance, key="etapa_dest")
+
+    # ── PASO 4: Destino ───────────────────────────────────────────────────────
+    st.markdown("### 4. ¿A dónde van?")
+    corrales_validos = get_chiqueros_disponibles_para(tipo_destino)
+    corrales_validos = [c for c in corrales_validos if c["id"] != id_origen]
+
+    if not corrales_validos:
+        st.warning(f"No hay corrales disponibles para {tipo_destino}.")
+        return
+
+    nombres_destino = [c["nombre"] for c in corrales_validos]
+    col_dest, col_add = st.columns([3, 1])
+    dest_nombre = col_dest.selectbox("Corral destino:", nombres_destino, key="dest_sel")
+    id_destino  = next(c["id"] for c in corrales_validos if c["nombre"] == dest_nombre)
+
+    # Info del destino seleccionado
+    dest_info = next(c for c in corrales_validos if c["nombre"] == dest_nombre)
+    col_dest.caption(
+        f"Ocupación: {int(dest_info['poblacion_actual'])}/{dest_info['capacidad_max']} · "
+        f"Estado: {dest_info['estado_capacidad'].upper()}"
+    )
+
+    if col_add.button("➕ Agregar", use_container_width=True, key="btn_add"):
+        suma_actual = sum(d["cant"] for d in st.session_state.destinos_temp)
+        if suma_actual + cantidad > disponible:
+            st.error(f"No puedes mover más de {disponible} animales.")
         else:
-            st.error("Sin conexion DB", icon="❌")
+            st.session_state.destinos_temp.append({
+                "dest":       dest_nombre,
+                "id_dest":    id_destino,
+                "cant":       cantidad,
+                "tipo_dest":  tipo_destino,
+            })
 
+    # ── Carrito ───────────────────────────────────────────────────────────────
+    if st.session_state.destinos_temp:
         st.markdown("---")
-        st.markdown("**Navegacion**")
+        st.markdown("### Resumen del movimiento")
+        suma_total = 0
+        for item in st.session_state.destinos_temp:
+            etapa_info = f" → **{item['tipo_dest']}**" if item["tipo_dest"] != tipo_a_mover else ""
+            st.write(f"✅ **{item['cant']}** van a **{item['dest']}**{etapa_info}")
+            suma_total += item["cant"]
 
-        if st.button("🗺️ Mapa de corrales", use_container_width=True):
-            st.session_state.pagina = "mapa"
+        st.write(f"Total a mover: **{suma_total}** / {disponible} disponibles")
+
+        col_conf, col_limpiar = st.columns(2)
+
+        if suma_total == disponible:
+            st.success("🎯 Lote completo distribuido — listo para confirmar")
+
+        if col_conf.button(
+            "🔓 APLICAR TRASPASO",
+            use_container_width=True,
+            type="primary",
+            disabled=suma_total == 0
+        ):
+            errores = []
+            for mov in st.session_state.destinos_temp:
+                ok, msg = mover_animales(
+                    id_chiquero_origen  = id_origen,
+                    id_chiquero_destino = int(mov["id_dest"]),
+                    tipo_animal         = tipo_a_mover,
+                    cantidad            = int(mov["cant"]),
+                    nuevo_tipo_destino  = mov["tipo_dest"] if mov["tipo_dest"] != tipo_a_mover else None,
+                    usuario             = st.session_state.usuario_nombre,
+                )
+                if not ok:
+                    errores.append(msg)
+
+            if errores:
+                for e in errores:
+                    st.error(e)
+            else:
+                st.session_state.destinos_temp = []
+                st.success("✅ Traspaso aplicado correctamente.")
+                time.sleep(1.5)
+                st.rerun()
+
+        if col_limpiar.button("🗑️ Limpiar", use_container_width=True):
+            st.session_state.destinos_temp = []
             st.rerun()
 
-        if rol != "ayudante_general":
-            if st.button("🔄 Traspasos", use_container_width=True):
-                st.session_state.pagina = "traspaso"
-                st.rerun()
 
-        if rol == "admin":
-            if st.button("📊 Reportes", use_container_width=True):
-                st.session_state.pagina = "reportes"
-                st.rerun()
-            if st.button("⚙️ Configuracion", use_container_width=True):
-                st.session_state.pagina = "configuracion"
-                st.rerun()
-            if st.button("👥 Usuarios", use_container_width=True):
-                st.session_state.pagina = "usuarios"
-                st.rerun()
+def _mostrar_alertas_celo():
+    """Muestra alertas de verificacion de celo pendientes a los 21 dias."""
+    from modulos.movimientos import (
+        get_verificaciones_celo_pendientes,
+        confirmar_gestacion,
+        cancelar_monta,
+    )
+    import time
 
-        st.markdown("---")
+    pendientes = get_verificaciones_celo_pendientes()
+    if not pendientes:
+        return
 
-        if rol != "admin":
-            from modulos.checador import ya_checo_hoy, ya_registro_salida
-            if ya_checo_hoy(st.session_state.usuario_id):
-                if not ya_registro_salida(st.session_state.usuario_id):
-                    if st.button("🕐 Registrar salida", use_container_width=True, type="primary"):
-                        st.session_state.pagina = "salida"
-                        st.rerun()
-                else:
-                    st.success("Salida registrada hoy", icon="✅")
+    st.warning(f"Verificacion de celo pendiente: {len(pendientes)} puerca(s)")
 
-        if st.button("🚪 Cerrar sesion", use_container_width=True):
-            for key in ["autenticado","usuario_id","usuario_nombre","usuario_rol","pagina"]:
-                st.session_state[key] = False if key == "autenticado" else ""
-            st.session_state.pagina = "mapa"
+    for p in pendientes:
+        dias = int(p["dias_desde_monta"])
+        fecha_str = p["fecha_monta"].strftime("%d/%m/%Y") if p["fecha_monta"] else "?"
+        parto_str = p["fecha_parto_estimada"].strftime("%d/%m/%Y") if p["fecha_parto_estimada"] else "?"
+        arete = p["arete"] or "S/A"
+
+        with st.container():
+            st.markdown(f"""
+            <div style="border:2px solid #F57F17; border-radius:10px;
+                        padding:12px; background:#FFFDE7; margin-bottom:10px;">
+                <b>{p['corral']}</b> — Arete: {arete}<br>
+                <span style="font-size:12px;color:#555;">
+                    Monta: {fecha_str} · Han pasado <b>{dias} dias</b><br>
+                    Parto estimado si quedo gestante: {parto_str}
+                </span>
+            </div>
+            """, unsafe_allow_html=True)
+
+            col_si, col_no = st.columns(2)
+            if col_si.button(
+                "No regreso al celo",
+                key=f"gestante_{p['id_chiquero']}",
+                use_container_width=True,
+                type="primary"
+            ):
+                ok, msg = confirmar_gestacion(
+                    p["id_chiquero"],
+                    st.session_state.usuario_nombre
+                )
+                if ok:
+                    st.success(f"Gestacion confirmada — parto estimado {parto_str}")
+                    time.sleep(1.5)
+                    st.rerun()
+
+            if col_no.button(
+                "Si regreso al celo",
+                key=f"cancela_{p['id_chiquero']}",
+                use_container_width=True
+            ):
+                ok, msg = cancelar_monta(
+                    p["id_chiquero"],
+                    st.session_state.usuario_nombre
+                )
+                if ok:
+                    st.info("Regresada a Disponible — monta cancelada")
+                    time.sleep(1.5)
+                    st.rerun()
+
+
+def mostrar_registro_muerte():
+    """Formulario para registrar muertes de animales."""
+    st.markdown("---")
+    st.markdown("### Registrar muerte")
+
+    from modulos.lotes import get_inventario_completo, get_lote
+    from database import execute, fetch_all
+    import cloudinary
+    import cloudinary.uploader
+    from config import CLOUDINARY_CONFIG
+    from datetime import datetime
+
+    cloudinary.config(
+        cloud_name=CLOUDINARY_CONFIG["cloud_name"],
+        api_key=CLOUDINARY_CONFIG["api_key"],
+        api_secret=CLOUDINARY_CONFIG["api_secret"],
+    )
+
+    CAUSAS = [
+        "Hernia",
+        "Aplastamiento", 
+        "Enfermedad",
+        "No logrado",
+        "Causa desconocida",
+        "Otro",
+    ]
+
+    df_inv = pd.DataFrame(get_inventario_completo())
+    df_con_stock = df_inv[df_inv["poblacion_actual"] > 0]
+
+    if df_con_stock.empty:
+        st.info("No hay animales registrados.")
+        return
+
+    col1, col2 = st.columns(2)
+    corral_sel = col1.selectbox(
+        "Corral:", 
+        df_con_stock["corral"].unique().tolist(),
+        key="muerte_corral"
+    )
+
+    datos_corral = df_con_stock[df_con_stock["corral"] == corral_sel].iloc[0]
+    id_corral = int(datos_corral["id"])
+
+    tipos_en_corral = [t.strip() for t in str(datos_corral["tipo_animal"]).split("/") 
+                       if t.strip() and t.strip() != "VACIO"]
+
+    tipo_animal = col2.selectbox(
+        "Tipo de animal:",
+        tipos_en_corral,
+        key="muerte_tipo"
+    )
+
+    lote = get_lote(id_corral, tipo_animal)
+    disponible = int(lote["poblacion_actual"]) if lote else 0
+    col2.caption(f"Disponibles: {disponible}")
+
+    col3, col4 = st.columns(2)
+    cantidad = col3.number_input(
+        "Cantidad muerta:",
+        min_value=1,
+        max_value=disponible,
+        step=1,
+        key="muerte_cantidad"
+    )
+
+    causa = col4.selectbox("Causa:", CAUSAS, key="muerte_causa")
+
+    notas = ""
+    if causa == "Otro":
+        notas = st.text_input("Especifica la causa:", key="muerte_notas")
+
+    # Foto opcional
+    if "camara_muerte_activa" not in st.session_state:
+        st.session_state.camara_muerte_activa = False
+
+    foto_url = None
+    if not st.session_state.camara_muerte_activa:
+        if st.button("Tomar foto (opcional)", key="btn_cam_muerte"):
+            st.session_state.camara_muerte_activa = True
+            st.rerun()
+    else:
+        foto = st.camera_input("Foto de evidencia:", key="cam_muerte")
+        if foto:
+            nombre_foto = f"corralia/muertes/{st.session_state.usuario_nombre}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            resultado = cloudinary.uploader.upload(
+                foto.getbuffer(),
+                public_id=nombre_foto,
+                overwrite=True,
+            )
+            foto_url = resultado["secure_url"]
+            st.session_state.camara_muerte_activa = False
+            st.success("Foto guardada.")
+            st.rerun()
+        if st.button("Sin foto", key="btn_sin_foto_muerte"):
+            st.session_state.camara_muerte_activa = False
             st.rerun()
 
-def _label_rol(rol: str) -> str:
-    labels = {
-        "admin":             "Administrador",
-        "encargado_general": "Encargado General",
-        "parideras":         "Encargado Parideras",
-        "crecimiento":       "Encargado Crecimiento",
-        "gestacion":         "Encargado Gestacion",
-        "ayudante_general":  "Ayudante General",
-    }
-    return labels.get(rol, rol)
-
-# ── Router ────────────────────────────────────────────────────────────────────
-def routear_pagina():
-    rol    = st.session_state.usuario_rol
-    pagina = st.session_state.pagina
-
-    if pagina == "mapa":
-        from streamlit_autorefresh import st_autorefresh
-        st_autorefresh(interval=60000, key="mapa_refresh")
-        from modulos.mapa import mostrar_mapa
-        mostrar_mapa()
-
-    elif pagina == "traspaso":
-        if rol == "ayudante_general":
-            st.error("Acceso restringido.")
+    if st.button("Registrar muerte", type="primary", use_container_width=True, key="btn_muerte"):
+        if disponible < cantidad:
+            st.error(f"Solo hay {disponible} animales en ese corral.")
             return
-        from modulos.traspaso import mostrar_traspaso
-        mostrar_traspaso()
 
-    elif pagina == "reportes":
-        if rol != "admin":
-            st.error("Acceso restringido.")
-            return
-        from modulos.reportes import mostrar_reportes
-        mostrar_reportes()
+        # Restar del inventario
+        execute(
+            """UPDATE lotes 
+               SET poblacion_actual = GREATEST(poblacion_actual - %s, 0)
+               WHERE id_chiquero = %s AND tipo_animal = %s""",
+            (cantidad, id_corral, tipo_animal)
+        )
 
-    elif pagina == "configuracion":
-        if rol != "admin":
-            st.error("Acceso restringido.")
-            return
-        from modulos.configuracion import mostrar_configuracion
-        mostrar_configuracion()
+        # Registrar en historial
+        nota_final = f"Causa: {causa}"
+        if notas:
+            nota_final += f" — {notas}"
 
-    elif pagina == "usuarios":
-        if rol != "admin":
-            st.error("Acceso restringido.")
-            return
-        from modulos.usuarios import mostrar_usuarios
-        mostrar_usuarios()
+        execute(
+            """INSERT INTO historial_movimientos 
+               (id_chiquero_destino, tipo_animal, cantidad, tipo_evento, id_usuario, notas, foto_evidencia)
+               VALUES (%s, %s, %s, 'MUERTE', %s, %s, %s)""",
+            (id_corral, tipo_animal, cantidad,
+             st.session_state.usuario_nombre, nota_final, foto_url)
+        )
 
-    elif pagina == "salida":
-        from modulos.checador import mostrar_registro_salida
-        mostrar_registro_salida()
+        st.success(f"{cantidad} {tipo_animal} registrados como muerte. Causa: {causa}")
+        import time
+        time.sleep(1.5)
+        st.rerun()
 
-# ── Main ──────────────────────────────────────────────────────────────────────
-def main():
-    if "activar_usuario" in st.session_state and st.session_state["activar_usuario"]:
-        mostrar_primer_acceso()
+
+def mostrar_cambio_etapa():
+    """
+    Cambia la etapa de animales en un corral sin moverlos fisicamente.
+    Ejemplo: Crias que crecieron y pasan a Destete en el mismo corral.
+    """
+    st.markdown("### Cambiar etapa sin mover animales")
+    st.info("Usa esto cuando los animales avanzan de etapa pero se quedan en el mismo corral.")
+
+    from modulos.lotes import get_inventario_completo, get_lote
+    from database import execute
+    from config import TIPOS_ANIMAL
+    import time
+
+    df_inv = pd.DataFrame(get_inventario_completo())
+    df_con_stock = df_inv[df_inv["poblacion_actual"] > 0]
+
+    if df_con_stock.empty:
+        st.info("No hay animales registrados.")
         return
 
-    if not st.session_state.autenticado:
-        mostrar_login()
+    col1, col2 = st.columns(2)
+    corral_sel = col1.selectbox(
+        "Corral:",
+        df_con_stock["corral"].unique().tolist(),
+        key="etapa_corral"
+    )
+
+    datos_corral = df_con_stock[df_con_stock["corral"] == corral_sel].iloc[0]
+    id_corral = int(datos_corral["id"])
+
+    tipos_en_corral = [t.strip() for t in str(datos_corral["tipo_animal"]).split("/")
+                       if t.strip() and t.strip() != "VACIO"]
+
+    etapa_actual = col2.selectbox(
+        "Etapa actual:",
+        tipos_en_corral,
+        key="etapa_actual"
+    )
+
+    lote = get_lote(id_corral, etapa_actual)
+    disponible = int(lote["poblacion_actual"]) if lote else 0
+    col2.caption(f"Animales en esta etapa: {disponible}")
+
+    # Etapas posibles hacia adelante
+    if etapa_actual in TIPOS_ANIMAL:
+        idx = TIPOS_ANIMAL.index(etapa_actual)
+        etapas_destino = TIPOS_ANIMAL[idx + 1:] if idx + 1 < len(TIPOS_ANIMAL) else []
+    else:
+        etapas_destino = TIPOS_ANIMAL
+
+    if not etapas_destino:
+        st.warning("Esta etapa no tiene avance posible.")
         return
 
-    mostrar_sidebar()
+    col3, col4 = st.columns(2)
+    nueva_etapa = col3.selectbox(
+        "Nueva etapa:",
+        etapas_destino,
+        key="etapa_nueva"
+    )
 
-    if st.session_state.usuario_rol != "admin":
-        from modulos.checador import ya_checo_hoy
-        if not ya_checo_hoy(st.session_state.usuario_id):
-            from modulos.checador import mostrar_checador_entrada
-            mostrar_checador_entrada()
-            return
+    cantidad = col4.number_input(
+        "Cantidad:",
+        min_value=1,
+        max_value=disponible,
+        step=1,
+        key="etapa_cantidad"
+    )
 
-    routear_pagina()
+    notas = st.text_input("Notas (opcional):", key="etapa_notas")
 
-if __name__ == "__main__":
-    main()
+    if st.button("Cambiar etapa", type="primary", use_container_width=True, key="btn_cambiar_etapa"):
+        # Restar de etapa actual
+        execute(
+            """UPDATE lotes
+               SET poblacion_actual = GREATEST(poblacion_actual - %s, 0)
+               WHERE id_chiquero = %s AND tipo_animal = %s""",
+            (cantidad, id_corral, etapa_actual)
+        )
+
+        # Agregar a nueva etapa en el mismo corral
+        execute(
+            """INSERT INTO lotes (id_chiquero, tipo_animal, poblacion_actual)
+               VALUES (%s, %s, %s)
+               ON DUPLICATE KEY UPDATE
+               poblacion_actual = poblacion_actual + VALUES(poblacion_actual)""",
+            (id_corral, nueva_etapa, cantidad)
+        )
+
+        # Historial
+        nota_final = notas or f"Cambio de etapa: {etapa_actual} -> {nueva_etapa} sin traspaso fisico"
+        execute(
+            """INSERT INTO historial_movimientos
+               (id_chiquero_destino, tipo_animal, cantidad, tipo_evento, id_usuario, notas)
+               VALUES (%s, %s, %s, 'CAMBIO_ESTADO', %s, %s)""",
+            (id_corral, nueva_etapa, cantidad,
+             st.session_state.usuario_nombre, nota_final)
+        )
+
+        st.success(f"{cantidad} animales cambiados de {etapa_actual} a {nueva_etapa} en {corral_sel}.")
+        time.sleep(1.5)
+        st.rerun()

@@ -16,8 +16,8 @@ def mostrar_traspaso():
     st.title("Traspasos")
     st.write(f"Operador: **{st.session_state.usuario_nombre}** — {pd.Timestamp.now().strftime('%d/%m/%Y')}")
 
-    # Tabs: Traspasos, Muertes y Cambio de Etapa
-    tab1, tab2, tab3 = st.tabs(["Traspasos", "Registrar Muerte", "Cambiar Etapa"])
+    # Tabs: Traspasos, Muertes, Cambio de Etapa y Ventas
+    tab1, tab2, tab3, tab4 = st.tabs(["Traspasos", "Registrar Muerte", "Cambiar Etapa", "Venta"])
 
     with tab1:
         _mostrar_alertas_celo()
@@ -28,6 +28,10 @@ def mostrar_traspaso():
 
     with tab3:
         mostrar_cambio_etapa()
+
+    with tab4:
+        from modulos.ventas import mostrar_registro_venta
+        mostrar_registro_venta()
 
 
 def _mostrar_wizard_traspaso():
