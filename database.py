@@ -21,10 +21,11 @@ def _get_pool() -> pooling.MySQLConnectionPool:
     """Crea el pool de conexiones una sola vez por instancia de la app."""
     try:
         pool = pooling.MySQLConnectionPool(
-            pool_name="corralia_pool",
-            pool_size=5,
-            **DB_CONFIG,
-        )
+    pool_name="corralia_pool",
+    pool_size=2,
+    connection_timeout=30,
+    **DB_CONFIG,
+)
         return pool
     except Error as e:
         st.error(f"Error al conectar con la base de datos: {e}")
