@@ -52,7 +52,9 @@ def fetch_one(sql: str, params: tuple = ()) -> Optional[dict]:
     with get_connection() as conn:
         cursor = conn.cursor(dictionary=True)
         cursor.execute(sql, params)
-        return cursor.fetchone()
+        result = cursor.fetchone()
+        cursor.fetchall()  # Limpiar resultados pendientes
+        return result
 
 
 def execute(sql: str, params: tuple = ()) -> int:
