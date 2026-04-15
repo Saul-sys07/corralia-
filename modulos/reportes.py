@@ -138,37 +138,17 @@ def mostrar_reportes():
 
         fecha_sel = st.date_input("Fecha:", value=date.today())
 
-        from zoneinfo import ZoneInfo
-        from datetime import datetime, timedelta
-
-        # Convertir fecha seleccionada a rango UTC para buscar correctamente
-        # Mexico es UTC-6, entonces el dia Mexico = UTC+6 horas
-        inicio_utc = datetime(fecha_sel.year, fecha_sel.month, fecha_sel.day, 6, 0, 0)
-        fin_utc    = inicio_utc + timedelta(hours=24)
-
         registros = fetch_all(
             """
             SELECT a.nombre, a.fecha_entrada, a.fecha_salida,
                    a.foto_entrada, a.foto_salida, u.rol
             FROM asistencia a
             JOIN usuarios u ON u.id = a.usuario_id
-            WHERE a.fecha_entrada >= %s AND a.fecha_entrada < %s
+            WHERE DATE(a.fecha_entrada) = %s
             ORDER BY a.fecha_entrada
             """,
-            (inicio_utc, fin_utc)
+            (fecha_sel,)
         )
-
-        # Convertir horas a Mexico para mostrar
-        def a_mexico(dt):
-            if dt is None:
-                return None
-            return dt - timedelta(hours=6)
-
-        for r in registros:
-            if r["fecha_entrada"]:
-                r["fecha_entrada"] = a_mexico(r["fecha_entrada"])
-            if r["fecha_salida"]:
-                r["fecha_salida"] = a_mexico(r["fecha_salida"])
 
         if not registros:
             st.info(f"Sin registros para {fecha_sel.strftime('%d/%m/%Y')}.")
