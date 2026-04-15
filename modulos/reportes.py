@@ -13,8 +13,6 @@ from modulos.chiqueros import get_alertas_capacidad
 
 
 def mostrar_reportes():
-    from streamlit_autorefresh import st_autorefresh
-    st_autorefresh(interval=15000, key="reportes_refresh")
     st.title("Reportes")
     st.caption("Panel exclusivo de administracion - Saul")
 
