@@ -1,28 +1,46 @@
 """
 modulos/checador.py - Corralia v3
-Checador de entrada/salida para todos los trabajadores.
-Admin (Saul) esta exento.
+Checador de entrada/salida con fotos a Cloudinary y hora Mexico.
 """
 
 import streamlit as st
 import time
-import os
 from datetime import date, datetime
+from zoneinfo import ZoneInfo
 from database import fetch_all, fetch_one, execute
+import cloudinary
+import cloudinary.uploader
+from config import CLOUDINARY_CONFIG
 
+cloudinary.config(
+    cloud_name=CLOUDINARY_CONFIG["cloud_name"],
+    api_key=CLOUDINARY_CONFIG["api_key"],
+    api_secret=CLOUDINARY_CONFIG["api_secret"],
+)
+
+def hora_mexico():
+    return datetime.now(ZoneInfo("America/Mexico_City"))
+
+def subir_foto(foto_bytes, nombre: str, tipo: str) -> str:
+    nombre_archivo = f"corralia/asistencia/{nombre}_{hora_mexico().strftime('%Y%m%d_%H%M%S')}_{tipo}"
+    resultado = cloudinary.uploader.upload(
+        foto_bytes,
+        public_id=nombre_archivo,
+        overwrite=True,
+    )
+    return resultado["secure_url"]
 
 def ya_checo_hoy(usuario_id: int) -> bool:
     row = fetch_one(
-        "SELECT id FROM asistencia WHERE usuario_id = %s AND DATE(fecha_entrada) = %s",
-        (usuario_id, date.today())
+        "SELECT id FROM asistencia WHERE usuario_id = %s AND DATE(CONVERT_TZ(fecha_entrada, '+00:00', '-06:00')) = %s",
+        (usuario_id, hora_mexico().date())
     )
     return row is not None
 
-
 def ya_registro_salida(usuario_id: int) -> bool:
     row = fetch_one(
-        "SELECT id FROM asistencia WHERE usuario_id = %s AND DATE(fecha_entrada) = %s AND fecha_salida IS NOT NULL",
-        (usuario_id, date.today())
+        "SELECT id FROM asistencia WHERE usuario_id = %s AND DATE(CONVERT_TZ(fecha_entrada, '+00:00', '-06:00')) = %s AND fecha_salida IS NOT NULL",
+        (usuario_id, hora_mexico().date())
     )
     return row is not None
 
@@ -30,7 +48,7 @@ def ya_registro_salida(usuario_id: int) -> bool:
 def mostrar_checador_entrada():
     nombre     = st.session_state.usuario_nombre
     usuario_id = st.session_state.usuario_id
-    hoy        = date.today()
+    hoy        = hora_mexico()
 
     col = st.columns([1, 2, 1])[1]
     with col:
@@ -39,28 +57,23 @@ def mostrar_checador_entrada():
         st.markdown("---")
         st.info("Registra tu entrada para comenzar tu jornada.")
 
-        # Camara solo se activa cuando el usuario presiona el boton
         if "camara_entrada_activa" not in st.session_state:
             st.session_state.camara_entrada_activa = False
 
         if not st.session_state.camara_entrada_activa:
-            if st.button("Tomar foto de entrada", type="primary",
-                         use_container_width=True):
+            if st.button("Tomar foto de entrada", type="primary", use_container_width=True):
                 st.session_state.camara_entrada_activa = True
                 st.rerun()
         else:
             foto = st.camera_input("Toma tu foto:")
             if foto:
-                os.makedirs("fotos_asistencia", exist_ok=True)
-                nombre_foto = f"fotos_asistencia/{nombre}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_entrada.jpg"
-                with open(nombre_foto, "wb") as f:
-                    f.write(foto.getbuffer())
+                foto_url = subir_foto(foto.getbuffer(), nombre, "entrada")
                 execute(
-                    "INSERT INTO asistencia (usuario_id, nombre, fecha_entrada, foto_entrada) VALUES (%s, %s, NOW(), %s)",
-                    (usuario_id, nombre, nombre_foto)
+                    "INSERT INTO asistencia (usuario_id, nombre, fecha_entrada, foto_entrada) VALUES (%s, %s, CONVERT_TZ(NOW(), '+00:00', '-06:00'), %s)",
+                    (usuario_id, nombre, foto_url)
                 )
                 st.session_state.camara_entrada_activa = False
-                st.success(f"Entrada registrada a las {datetime.now().strftime('%H:%M')} — Bienvenido.")
+                st.success(f"Entrada registrada a las {hoy.strftime('%H:%M')} — Bienvenido.")
                 time.sleep(1.5)
                 st.rerun()
             if st.button("Cancelar", key="cancel_cam_entrada"):
@@ -77,17 +90,17 @@ def mostrar_checador_entrada():
 def mostrar_registro_salida():
     nombre     = st.session_state.usuario_nombre
     usuario_id = st.session_state.usuario_id
-    hoy        = date.today()
+    hoy        = hora_mexico()
 
     col = st.columns([1, 2, 1])[1]
     with col:
-        st.markdown(f"## Registrar salida")
+        st.markdown("## Registrar salida")
         st.markdown(f"**{nombre}** — {hoy.strftime('%d/%m/%Y')}")
         st.markdown("---")
 
         registro = fetch_one(
-            "SELECT * FROM asistencia WHERE usuario_id = %s AND DATE(fecha_entrada) = %s",
-            (usuario_id, hoy)
+            "SELECT * FROM asistencia WHERE usuario_id = %s AND DATE(CONVERT_TZ(fecha_entrada, '+00:00', '-06:00')) = %s",
+            (usuario_id, hoy.date())
         )
 
         if not registro:
@@ -101,27 +114,22 @@ def mostrar_registro_salida():
             st.session_state.camara_salida_activa = False
 
         if not st.session_state.camara_salida_activa:
-            if st.button("Tomar foto de salida", type="primary",
-                         use_container_width=True):
+            if st.button("Tomar foto de salida", type="primary", use_container_width=True):
                 st.session_state.camara_salida_activa = True
                 st.rerun()
         else:
             foto = st.camera_input("Toma tu foto:")
             if foto:
-                os.makedirs("fotos_asistencia", exist_ok=True)
-                nombre_foto = f"fotos_asistencia/{nombre}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_salida.jpg"
-                with open(nombre_foto, "wb") as f:
-                    f.write(foto.getbuffer())
+                foto_url = subir_foto(foto.getbuffer(), nombre, "salida")
                 execute(
-                    "UPDATE asistencia SET fecha_salida = NOW(), foto_salida = %s WHERE id = %s",
-                    (nombre_foto, registro["id"])
+                    "UPDATE asistencia SET fecha_salida = CONVERT_TZ(NOW(), '+00:00', '-06:00'), foto_salida = %s WHERE id = %s",
+                    (foto_url, registro["id"])
                 )
                 st.session_state.camara_salida_activa = False
-                st.success(f"Salida registrada a las {datetime.now().strftime('%H:%M')}. Hasta manana.")
+                st.success(f"Salida registrada a las {hoy.strftime('%H:%M')}. Hasta manana.")
                 time.sleep(1.5)
                 st.session_state.pagina = "mapa"
                 st.rerun()
-
             if st.button("Cancelar", use_container_width=True):
                 st.session_state.camara_salida_activa = False
                 st.session_state.pagina = "mapa"
@@ -129,18 +137,18 @@ def mostrar_registro_salida():
 
 
 def mostrar_checador():
-    """Vista para ayudantes generales — solo entrada/salida."""
+    """Vista para ayudantes generales."""
     nombre     = st.session_state.usuario_nombre
     usuario_id = st.session_state.usuario_id
-    hoy        = date.today()
+    hoy        = hora_mexico()
 
     st.markdown(f"## {nombre}")
-    st.caption(hoy.strftime("%d/%m/%Y"))
+    st.caption(hoy.strftime("%d/%m/%Y — %H:%M"))
     st.markdown("---")
 
     registro = fetch_one(
-        "SELECT * FROM asistencia WHERE usuario_id = %s AND DATE(fecha_entrada) = %s",
-        (usuario_id, hoy)
+        "SELECT * FROM asistencia WHERE usuario_id = %s AND DATE(CONVERT_TZ(fecha_entrada, '+00:00', '-06:00')) = %s",
+        (usuario_id, hoy.date())
     )
 
     ya_salio = registro and registro.get("fecha_salida") is not None
@@ -150,29 +158,27 @@ def mostrar_checador():
         st.success(f"Entrada registrada a las **{entrada.strftime('%H:%M')}**")
         st.markdown("---")
         st.markdown("### Registrar salida")
+
         if "camara_salida_ay" not in st.session_state:
             st.session_state.camara_salida_ay = False
 
         if not st.session_state.camara_salida_ay:
-            if st.button("Tomar foto de salida", type="primary",
-                         use_container_width=True):
+            if st.button("Tomar foto de salida", type="primary", use_container_width=True):
                 st.session_state.camara_salida_ay = True
                 st.rerun()
         else:
             foto = st.camera_input("Toma tu foto:")
             if foto:
-                os.makedirs("fotos_asistencia", exist_ok=True)
-                nombre_foto = f"fotos_asistencia/{nombre}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_salida.jpg"
-                with open(nombre_foto, "wb") as f:
-                    f.write(foto.getbuffer())
+                foto_url = subir_foto(foto.getbuffer(), nombre, "salida")
                 execute(
-                    "UPDATE asistencia SET fecha_salida = NOW(), foto_salida = %s WHERE id = %s",
-                    (nombre_foto, registro["id"])
+                    "UPDATE asistencia SET fecha_salida = CONVERT_TZ(NOW(), '+00:00', '-06:00'), foto_salida = %s WHERE id = %s",
+                    (foto_url, registro["id"])
                 )
                 st.session_state.camara_salida_ay = False
-                st.success(f"Salida registrada — {datetime.now().strftime('%H:%M')}. Hasta manana.")
+                st.success(f"Salida registrada — {hoy.strftime('%H:%M')}. Hasta manana.")
                 time.sleep(1.5)
                 st.rerun()
+
     elif ya_salio:
         entrada = registro["fecha_entrada"]
         salida  = registro["fecha_salida"]
