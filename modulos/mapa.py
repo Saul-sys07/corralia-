@@ -26,7 +26,10 @@ def mostrar_mapa():
         mostrar_checador()
         return
 
-    st.title("Mapa de Corrales")
+    col_titulo, col_refresh = st.columns([5, 1])
+    col_titulo.title("Mapa de Corrales")
+    if col_refresh.button("🔄 Actualizar", use_container_width=True):
+        st.rerun()
 
     # Filtrar zonas segun rol
     zonas_visibles = ZONA_POR_ROL.get(rol)  # None = ve todo
