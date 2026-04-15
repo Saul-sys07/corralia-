@@ -16,8 +16,8 @@ def mostrar_traspaso():
     st.title("Traspasos")
     st.write(f"Operador: **{st.session_state.usuario_nombre}** — {pd.Timestamp.now().strftime('%d/%m/%Y')}")
 
-    # Tabs: Traspasos y Muertes
-    tab1, tab2 = st.tabs(["Traspasos", "Registrar Muerte"])
+    # Tabs: Traspasos, Muertes y Cambio de Etapa
+    tab1, tab2, tab3 = st.tabs(["Traspasos", "Registrar Muerte", "Cambiar Etapa"])
 
     with tab1:
         _mostrar_alertas_celo()
@@ -25,6 +25,9 @@ def mostrar_traspaso():
 
     with tab2:
         mostrar_registro_muerte()
+
+    with tab3:
+        mostrar_cambio_etapa()
 
 
 def _mostrar_wizard_traspaso():
@@ -361,5 +364,109 @@ def mostrar_registro_muerte():
 
         st.success(f"{cantidad} {tipo_animal} registrados como muerte. Causa: {causa}")
         import time
+        time.sleep(1.5)
+        st.rerun()
+
+
+def mostrar_cambio_etapa():
+    """
+    Cambia la etapa de animales en un corral sin moverlos fisicamente.
+    Ejemplo: Crias que crecieron y pasan a Destete en el mismo corral.
+    """
+    st.markdown("### Cambiar etapa sin mover animales")
+    st.info("Usa esto cuando los animales avanzan de etapa pero se quedan en el mismo corral.")
+
+    from modulos.lotes import get_inventario_completo, get_lote
+    from database import execute
+    from config import TIPOS_ANIMAL
+    import time
+
+    df_inv = pd.DataFrame(get_inventario_completo())
+    df_con_stock = df_inv[df_inv["poblacion_actual"] > 0]
+
+    if df_con_stock.empty:
+        st.info("No hay animales registrados.")
+        return
+
+    col1, col2 = st.columns(2)
+    corral_sel = col1.selectbox(
+        "Corral:",
+        df_con_stock["corral"].unique().tolist(),
+        key="etapa_corral"
+    )
+
+    datos_corral = df_con_stock[df_con_stock["corral"] == corral_sel].iloc[0]
+    id_corral = int(datos_corral["id"])
+
+    tipos_en_corral = [t.strip() for t in str(datos_corral["tipo_animal"]).split("/")
+                       if t.strip() and t.strip() != "VACIO"]
+
+    etapa_actual = col2.selectbox(
+        "Etapa actual:",
+        tipos_en_corral,
+        key="etapa_actual"
+    )
+
+    lote = get_lote(id_corral, etapa_actual)
+    disponible = int(lote["poblacion_actual"]) if lote else 0
+    col2.caption(f"Animales en esta etapa: {disponible}")
+
+    # Etapas posibles hacia adelante
+    if etapa_actual in TIPOS_ANIMAL:
+        idx = TIPOS_ANIMAL.index(etapa_actual)
+        etapas_destino = TIPOS_ANIMAL[idx + 1:] if idx + 1 < len(TIPOS_ANIMAL) else []
+    else:
+        etapas_destino = TIPOS_ANIMAL
+
+    if not etapas_destino:
+        st.warning("Esta etapa no tiene avance posible.")
+        return
+
+    col3, col4 = st.columns(2)
+    nueva_etapa = col3.selectbox(
+        "Nueva etapa:",
+        etapas_destino,
+        key="etapa_nueva"
+    )
+
+    cantidad = col4.number_input(
+        "Cantidad:",
+        min_value=1,
+        max_value=disponible,
+        step=1,
+        key="etapa_cantidad"
+    )
+
+    notas = st.text_input("Notas (opcional):", key="etapa_notas")
+
+    if st.button("Cambiar etapa", type="primary", use_container_width=True, key="btn_cambiar_etapa"):
+        # Restar de etapa actual
+        execute(
+            """UPDATE lotes
+               SET poblacion_actual = GREATEST(poblacion_actual - %s, 0)
+               WHERE id_chiquero = %s AND tipo_animal = %s""",
+            (cantidad, id_corral, etapa_actual)
+        )
+
+        # Agregar a nueva etapa en el mismo corral
+        execute(
+            """INSERT INTO lotes (id_chiquero, tipo_animal, poblacion_actual)
+               VALUES (%s, %s, %s)
+               ON DUPLICATE KEY UPDATE
+               poblacion_actual = poblacion_actual + VALUES(poblacion_actual)""",
+            (id_corral, nueva_etapa, cantidad)
+        )
+
+        # Historial
+        nota_final = notas or f"Cambio de etapa: {etapa_actual} -> {nueva_etapa} sin traspaso fisico"
+        execute(
+            """INSERT INTO historial_movimientos
+               (id_chiquero_destino, tipo_animal, cantidad, tipo_evento, id_usuario, notas)
+               VALUES (%s, %s, %s, 'CAMBIO_ESTADO', %s, %s)""",
+            (id_corral, nueva_etapa, cantidad,
+             st.session_state.usuario_nombre, nota_final)
+        )
+
+        st.success(f"{cantidad} animales cambiados de {etapa_actual} a {nueva_etapa} en {corral_sel}.")
         time.sleep(1.5)
         st.rerun()
