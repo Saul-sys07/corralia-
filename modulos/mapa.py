@@ -220,7 +220,16 @@ def _tarjeta(row):
                 <div id="btn_vent_{row['id']}" style="flex:1"></div>
             </div>
             """, unsafe_allow_html=True)
-            b1, b2, b3, b4 = st.columns([1,1,1,1])
+            rol_actual = st.session_state.get("usuario_rol", "admin")
+            mostrar_venta = rol_actual in ("admin", "encargado_general")
+
+            # Centrar botones en contenedor de ancho fijo
+            st.markdown('<div style="max-width:280px;margin:0 auto;">', unsafe_allow_html=True)
+            if mostrar_venta:
+                b1, b2, b3, b4 = st.columns(4)
+            else:
+                b1, b2, b3 = st.columns(3)
+
             if b1.button("🔄", key=f"tras_{row['id']}", use_container_width=True, help="Trasladar"):
                 st.session_state.pagina = "traspaso"
                 st.session_state.corral_presel = row['nombre']
@@ -235,11 +244,11 @@ def _tarjeta(row):
                 st.session_state.tab_presel = "etapa"
                 st.session_state.corral_presel = row['nombre']
                 st.rerun()
-            rol_actual = st.session_state.get("usuario_rol", "admin")
-            if rol_actual in ("admin", "encargado_general"):
+            if mostrar_venta:
                 if b4.button("💰", key=f"vent_{row['id']}", use_container_width=True, help="Venta"):
                     st.session_state.pagina = "traspaso"
                     st.session_state.tab_presel = "venta"
                     st.session_state.corral_presel = row['nombre']
                     st.rerun()
-            st.caption("🔄 Trasladar · 💀 Muerte · 📦 Etapa · 💰 Venta")
+            st.markdown('</div>', unsafe_allow_html=True)
+            st.caption("🔄 Trasladar · 💀 Muerte · 📦 Etapa" + (" · 💰 Venta" if mostrar_venta else ""))
