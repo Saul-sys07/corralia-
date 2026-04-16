@@ -212,23 +212,32 @@ def _tarjeta(row):
             tipos_en_corral = [t.strip() for t in tipo_animal_raw.split("/") if t.strip() and t.strip() != "VACIO"]
             if len(tipos_en_corral) > 1:
                 st.selectbox("Tipo:", tipos_en_corral, key=f"tipo_acc_{row['id']}")
-            b1, b2, b3, b4 = st.columns(4)
-            if b1.button("Trasladar", key=f"tras_{row['id']}", use_container_width=True):
+            st.markdown(f"""
+            <div style="display:flex;gap:6px;flex-wrap:nowrap;margin-top:6px;">
+                <div id="btn_tras_{row['id']}" style="flex:1"></div>
+                <div id="btn_muer_{row['id']}" style="flex:1"></div>
+                <div id="btn_etap_{row['id']}" style="flex:1"></div>
+                <div id="btn_vent_{row['id']}" style="flex:1"></div>
+            </div>
+            """, unsafe_allow_html=True)
+            b1, b2, b3, b4 = st.columns([1,1,1,1])
+            if b1.button("🔄", key=f"tras_{row['id']}", use_container_width=True, help="Trasladar"):
                 st.session_state.pagina = "traspaso"
                 st.session_state.corral_presel = row['nombre']
                 st.rerun()
-            if b2.button("Muerte", key=f"muer_{row['id']}", use_container_width=True):
+            if b2.button("💀", key=f"muer_{row['id']}", use_container_width=True, help="Muerte"):
                 st.session_state.pagina = "traspaso"
                 st.session_state.tab_presel = "muerte"
                 st.session_state.corral_presel = row['nombre']
                 st.rerun()
-            if b3.button("Etapa", key=f"etap_{row['id']}", use_container_width=True):
+            if b3.button("📦", key=f"etap_{row['id']}", use_container_width=True, help="Cambiar Etapa"):
                 st.session_state.pagina = "traspaso"
                 st.session_state.tab_presel = "etapa"
                 st.session_state.corral_presel = row['nombre']
                 st.rerun()
-            if b4.button("Venta", key=f"vent_{row['id']}", use_container_width=True):
+            if b4.button("💰", key=f"vent_{row['id']}", use_container_width=True, help="Venta"):
                 st.session_state.pagina = "traspaso"
                 st.session_state.tab_presel = "venta"
                 st.session_state.corral_presel = row['nombre']
                 st.rerun()
+            st.caption("🔄 Trasladar · 💀 Muerte · 📦 Etapa · 💰 Venta")
