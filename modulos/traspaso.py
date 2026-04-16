@@ -13,12 +13,12 @@ from config import TIPOS_ANIMAL
 
 
 def mostrar_traspaso():
-    col_titulo, col_back = st.columns([5, 1])
-    col_titulo.title("Traspasos")
-    if col_back.button("← Mapa", use_container_width=True, key="back_mapa_traspaso"):
-        st.session_state.pagina = "mapa"
-        st.rerun()
+    st.title("Traspasos")
     st.write(f"Operador: **{st.session_state.usuario_nombre}** — {pd.Timestamp.now().strftime('%d/%m/%Y')}")
+
+
+
+
 
     # Leer tab preseleccionado desde tarjeta del mapa
     tab_presel = st.session_state.get("tab_presel", None)
@@ -81,11 +81,11 @@ def _filtrar_destinos_por_rol(corrales: list, rol: str) -> list:
 
 def _mostrar_wizard_traspaso():
 
-    # Boton regresar al mapa
-    if st.button("← Regresar al mapa", key="btn_regresar_tras"):
-        st.session_state.pagina = "mapa"
-        st.session_state.pop("corral_presel", None)
-        st.rerun()
+
+
+
+
+
 
     st.markdown("---")
 
