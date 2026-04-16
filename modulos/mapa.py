@@ -193,40 +193,42 @@ def _tarjeta(row):
         tipo_badge = tipo_animal_raw if tipo_animal_raw != "VACIO" else ""
 
 
-    st.markdown(f"""
-    <div style="
-        border: 2px solid {color_hex};
-        border-radius: 12px;
-        padding: 12px 10px;
-        background: white;
-        text-align: center;
-        margin-bottom: 12px;
-        min-height: 160px;
-    ">
-        <div style="font-size:12px;font-weight:700;color:#333;margin-bottom:4px;">
-            {row['nombre']}
+    with st.expander(f"{row['nombre']} — {pob}/{cap} {tipo_badge}", expanded=False):
+        st.markdown(f"""
+        <div style="border:2px solid {color_hex};border-radius:12px;padding:12px 10px;background:white;text-align:center;margin-bottom:6px;">
+            <div style="font-size:10px;color:{color_hex};font-weight:600;">{emoji} {estado}</div>
+            <div style="font-size:28px;font-weight:800;color:#222;line-height:1.1;">{pob}</div>
+            <div style="font-size:11px;color:#888;margin-bottom:8px;">de {cap} {'lugar' if cap == 1 else 'lugares'}</div>
+            <div style="background:#f0f0f0;border-radius:20px;height:8px;overflow:hidden;margin:0 4px 6px;">
+                <div style="width:{pct_barra:.0f}%;height:100%;background:{color_barra};border-radius:20px;"></div>
+            </div>
+            <div style="font-size:10px;color:#aaa;">{area_str}</div>
+            <div style="font-size:11px;font-weight:600;color:#555;margin-top:3px;">{tipo_badge}</div>
+            {estado_pc}{parto_html}
         </div>
-        <div style="font-size:10px;color:{color_hex};font-weight:600;margin-bottom:6px;">
-            {emoji} {estado}
-        </div>
-        <div style="font-size:28px;font-weight:800;color:#222;line-height:1.1;">
-            {pob}
-        </div>
-        <div style="font-size:11px;color:#888;margin-bottom:8px;">
-            de {cap} {'lugar' if cap == 1 else 'lugares'}
-        </div>
-        <div style="background:#f0f0f0;border-radius:20px;height:8px;overflow:hidden;margin:0 4px 6px;">
-            <div style="
-                width:{pct_barra:.0f}%;
-                height:100%;
-                background:{color_barra};
-                border-radius:20px;
-                transition: width 0.3s;
-            "></div>
-        </div>
-        <div style="font-size:10px;color:#aaa;">{area_str}</div>
-        <div style="font-size:11px;font-weight:600;color:#555;margin-top:3px;">{tipo_badge}</div>
-        {estado_pc}
-        {parto_html}
-    </div>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
+
+        if pob > 0:
+            tipos_en_corral = [t.strip() for t in tipo_animal_raw.split("/") if t.strip() and t.strip() != "VACIO"]
+            if len(tipos_en_corral) > 1:
+                st.selectbox("Tipo:", tipos_en_corral, key=f"tipo_acc_{row['id']}")
+            b1, b2, b3, b4 = st.columns(4)
+            if b1.button("Trasladar", key=f"tras_{row['id']}", use_container_width=True):
+                st.session_state.pagina = "traspaso"
+                st.session_state.corral_presel = row['nombre']
+                st.rerun()
+            if b2.button("Muerte", key=f"muer_{row['id']}", use_container_width=True):
+                st.session_state.pagina = "traspaso"
+                st.session_state.tab_presel = "muerte"
+                st.session_state.corral_presel = row['nombre']
+                st.rerun()
+            if b3.button("Etapa", key=f"etap_{row['id']}", use_container_width=True):
+                st.session_state.pagina = "traspaso"
+                st.session_state.tab_presel = "etapa"
+                st.session_state.corral_presel = row['nombre']
+                st.rerun()
+            if b4.button("Venta", key=f"vent_{row['id']}", use_container_width=True):
+                st.session_state.pagina = "traspaso"
+                st.session_state.tab_presel = "venta"
+                st.session_state.corral_presel = row['nombre']
+                st.rerun()
