@@ -1,3 +1,125 @@
+import streamlit as st
+import pandas as pd
+from modulos.chiqueros import get_alertas_capacidad
+from modulos.movimientos import get_resumen_criticos
+from database import fetch_all
+
+ZONAS = [
+    {"key": "Parideras",   "icono": "🐷"},
+    {"key": "Gestacion",   "icono": "🔄"},
+    {"key": "Crecimiento", "icono": "📈"},
+]
+
+ZONA_POR_ROL = {
+    "parideras":  ["Parideras"],
+    "gestacion":  ["Gestacion"],
+    "crecimiento":["Crecimiento"],
+}
+
+def mostrar_mapa():
+    rol = st.session_state.get("usuario_rol", "admin")
+    if rol == "ayudante_general":
+        from modulos.checador import mostrar_checador
+        mostrar_checador()
+        return
+
+    col_titulo, col_refresh = st.columns([5, 1])
+    col_titulo.title("Mapa de Corrales")
+    if col_refresh.button("🔄 Actualizar", use_container_width=True):
+        st.rerun()
+
+    zonas_visibles = ZONA_POR_ROL.get(rol)
+
+    criticos = get_resumen_criticos()
+    msgs = []
+    if criticos.get("Herniados", 0) > 0:
+        msgs.append(f"🔴 {criticos['Herniados']} Herniados")
+    if criticos.get("Desecho", 0) > 0:
+        msgs.append(f"⚪ {criticos['Desecho']} en Desecho")
+    if msgs:
+        st.error("  ·  ".join(msgs))
+
+    alertas_cap = get_alertas_capacidad()
+    rojos     = [a for a in alertas_cap if a["nivel"] == "rojo"]
+    amarillos = [a for a in alertas_cap if a["nivel"] == "amarillo"]
+    if rojos:
+        st.error("🚨 Excedidos: " + ", ".join(a["nombre"] for a in rojos))
+    if amarillos:
+        st.warning("⚠️ Al limite: " + ", ".join(a["nombre"] for a in amarillos))
+
+    filtro_estado = st.selectbox(
+        "Mostrar:", ["Solo ocupados", "Todos"], key="filtro_estado"
+    )
+
+    st.markdown("---")
+
+    todos = fetch_all("""
+        SELECT c.id, c.capacidad_max,
+               IFNULL(SUM(l.poblacion_actual),0) AS pob
+        FROM chiqueros c
+        LEFT JOIN lotes l ON c.id = l.id_chiquero AND l.poblacion_actual > 0
+        GROUP BY c.id
+    """)
+    total_animales = sum(int(r["pob"]) for r in todos)
+    ocupados_total = sum(1 for r in todos if r["pob"] > 0)
+
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Total animales", total_animales)
+    c2.metric("Corrales ocupados", f"{ocupados_total} / {len(todos)}")
+    c3.metric("Corrales vacios", len(todos) - ocupados_total)
+
+    st.markdown("---")
+
+    for zona in ZONAS:
+        if zonas_visibles and zona["key"] not in zonas_visibles:
+            continue
+        _renderizar_zona(zona, filtro_estado)
+
+
+def _renderizar_zona(zona, filtro_estado):
+    sql = """
+        SELECT
+            c.id, c.nombre, c.tipo, c.zona,
+            c.capacidad_max,
+            IFNULL(c.area_m2, c.largo * c.ancho) AS area_m2,
+            IFNULL(SUM(l.poblacion_actual), 0)   AS poblacion_actual,
+            IFNULL(GROUP_CONCAT(
+                DISTINCT l.tipo_animal ORDER BY l.tipo_animal SEPARATOR ' / '
+            ), 'VACIO') AS tipo_animal,
+            MAX(l.fecha_parto_estimada) AS fecha_parto,
+            GROUP_CONCAT(
+                DISTINCT l.estado_pie_cria ORDER BY l.estado_pie_cria SEPARATOR ', '
+            ) AS estado_pie_cria
+        FROM chiqueros c
+        LEFT JOIN lotes l ON c.id = l.id_chiquero AND l.poblacion_actual > 0
+        WHERE c.zona = %s
+        GROUP BY c.id
+        ORDER BY c.nombre
+    """
+    rows = fetch_all(sql, (zona["key"],))
+    if not rows:
+        return
+
+    total    = len(rows)
+    ocupados = sum(1 for r in rows if r["poblacion_actual"] > 0)
+    animales = sum(r["poblacion_actual"] for r in rows)
+
+    mostrar = rows if filtro_estado == "Todos" else [r for r in rows if r["poblacion_actual"] > 0]
+
+    with st.expander(
+        f"{zona['icono']} **{zona['key']}** — {ocupados}/{total} ocupados · {int(animales)} animales",
+        expanded=True
+    ):
+        if not mostrar:
+            st.caption("Todos los corrales vacios.")
+            return
+
+        cols = st.columns(4)
+        for i, row in enumerate(mostrar):
+            with cols[i % 4]:
+                _tarjeta(row)
+
+
 def _tarjeta(row):
     cap  = max(int(row["capacidad_max"] or 1), 1)
     pob  = int(row["poblacion_actual"] or 0)
@@ -54,7 +176,6 @@ def _tarjeta(row):
     label_expander = f"{emoji} {row['nombre']}  —  {pob}/{cap}  {tipo_badge}"
 
     with st.expander(label_expander, expanded=False):
-        # ── Tarjeta info ──────────────────────────────────────
         st.markdown(f"""
         <div style="
             border: 2px solid {color_hex};
@@ -88,7 +209,6 @@ def _tarjeta(row):
         </div>
         """, unsafe_allow_html=True)
 
-        # ── Botones de acción ─────────────────────────────────
         if pob > 0:
             tipos_en_corral = [t.strip() for t in tipo_animal_raw.split("/")
                                if t.strip() and t.strip() != "VACIO"]
