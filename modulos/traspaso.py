@@ -49,9 +49,15 @@ def _mostrar_wizard_traspaso():
         st.info("No hay animales registrados. Ve a Configuración para registrar el inventario.")
         return
 
+    # Si viene preseleccionado desde tarjeta del mapa
+    corrales_disponibles = df_con_stock["corral"].unique().tolist()
+    presel = st.session_state.pop("corral_presel", None)
+    idx_presel = corrales_disponibles.index(presel) if presel and presel in corrales_disponibles else 0
+
     origen_nombre = st.selectbox(
         "Corral de origen:",
-        df_con_stock["corral"].unique().tolist(),
+        corrales_disponibles,
+        index=idx_presel,
         key="origen_sel"
     )
     datos_origen = df_con_stock[df_con_stock["corral"] == origen_nombre].iloc[0]
@@ -277,11 +283,10 @@ def mostrar_registro_muerte():
         return
 
     col1, col2 = st.columns(2)
-    corral_sel = col1.selectbox(
-        "Corral:", 
-        df_con_stock["corral"].unique().tolist(),
-        key="muerte_corral"
-    )
+    corrales_m = df_con_stock["corral"].unique().tolist()
+    presel_m = st.session_state.pop("corral_presel", None) if "corral_presel" in st.session_state else None
+    idx_m = corrales_m.index(presel_m) if presel_m and presel_m in corrales_m else 0
+    corral_sel = col1.selectbox("Corral:", corrales_m, index=idx_m, key="muerte_corral")
 
     datos_corral = df_con_stock[df_con_stock["corral"] == corral_sel].iloc[0]
     id_corral = int(datos_corral["id"])
@@ -393,11 +398,10 @@ def mostrar_cambio_etapa():
         return
 
     col1, col2 = st.columns(2)
-    corral_sel = col1.selectbox(
-        "Corral:",
-        df_con_stock["corral"].unique().tolist(),
-        key="etapa_corral"
-    )
+    corrales_e = df_con_stock["corral"].unique().tolist()
+    presel_e = st.session_state.pop("corral_presel", None) if "corral_presel" in st.session_state else None
+    idx_e = corrales_e.index(presel_e) if presel_e and presel_e in corrales_e else 0
+    corral_sel = col1.selectbox("Corral:", corrales_e, index=idx_e, key="etapa_corral")
 
     datos_corral = df_con_stock[df_con_stock["corral"] == corral_sel].iloc[0]
     id_corral = int(datos_corral["id"])
