@@ -235,9 +235,11 @@ def _tarjeta(row):
                 st.session_state.tab_presel = "etapa"
                 st.session_state.corral_presel = row['nombre']
                 st.rerun()
-            if b4.button("💰", key=f"vent_{row['id']}", use_container_width=True, help="Venta"):
-                st.session_state.pagina = "traspaso"
-                st.session_state.tab_presel = "venta"
-                st.session_state.corral_presel = row['nombre']
-                st.rerun()
+            rol_actual = st.session_state.get("usuario_rol", "admin")
+            if rol_actual in ("admin", "encargado_general"):
+                if b4.button("💰", key=f"vent_{row['id']}", use_container_width=True, help="Venta"):
+                    st.session_state.pagina = "traspaso"
+                    st.session_state.tab_presel = "venta"
+                    st.session_state.corral_presel = row['nombre']
+                    st.rerun()
             st.caption("🔄 Trasladar · 💀 Muerte · 📦 Etapa · 💰 Venta")

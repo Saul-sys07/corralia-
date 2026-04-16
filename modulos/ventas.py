@@ -100,23 +100,18 @@ def mostrar_registro_venta():
     st.markdown("**2. Animales**")
 
     df_inv = pd.DataFrame(get_inventario_completo())
-    df_engorda = df_inv[
-        (df_inv["poblacion_actual"] > 0) &
-        (df_inv["tipo_animal"].str.contains("Engorda|Destete", na=False))
-    ]
-
-    if df_engorda.empty:
-        df_engorda = df_inv[df_inv["poblacion_actual"] > 0]
+    df_todos = df_inv[df_inv["poblacion_actual"] > 0]
 
     col1, col2 = st.columns(2)
-    corrales_v = df_engorda["corral"].unique().tolist()
     presel_v = st.session_state.pop("corral_presel", None) if "corral_presel" in st.session_state else None
+    corrales_v = df_todos["corral"].unique().tolist()
+
     if presel_v and presel_v in corrales_v:
         corral_sel = presel_v
         col1.info(f"📍 **{corral_sel}**")
     else:
         corral_sel = col1.selectbox("Corral:", corrales_v, key="venta_corral")
-    datos_corral = df_engorda[df_engorda["corral"] == corral_sel].iloc[0]
+    datos_corral = df_todos[df_todos["corral"] == corral_sel].iloc[0]
     id_corral = int(datos_corral["id"])
 
     tipos_en_corral = [t.strip() for t in str(datos_corral["tipo_animal"]).split("/")
