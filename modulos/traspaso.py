@@ -20,7 +20,25 @@ def mostrar_traspaso():
         st.rerun()
     st.write(f"Operador: **{st.session_state.usuario_nombre}** — {pd.Timestamp.now().strftime('%d/%m/%Y')}")
 
-    # Tabs: Traspasos, Muertes, Cambio de Etapa y Ventas
+    # Leer tab preseleccionado desde tarjeta del mapa
+    tab_presel = st.session_state.get("tab_presel", None)
+
+    # Si viene desde tarjeta, mostrar solo esa accion
+    if tab_presel == "muerte":
+        st.session_state.pop("tab_presel", None)
+        mostrar_registro_muerte()
+        return
+    elif tab_presel == "etapa":
+        st.session_state.pop("tab_presel", None)
+        mostrar_cambio_etapa()
+        return
+    elif tab_presel == "venta":
+        st.session_state.pop("tab_presel", None)
+        from modulos.ventas import mostrar_registro_venta
+        mostrar_registro_venta()
+        return
+
+    # Sin preseleccion — mostrar todos los tabs
     tab1, tab2, tab3, tab4 = st.tabs(["Traspasos", "Registrar Muerte", "Cambiar Etapa", "Venta"])
 
     with tab1:
