@@ -13,7 +13,11 @@ from config import TIPOS_ANIMAL
 
 
 def mostrar_traspaso():
-    st.title("Traspasos")
+    col_titulo, col_back = st.columns([5, 1])
+    col_titulo.title("Traspasos")
+    if col_back.button("← Mapa", use_container_width=True, key="back_mapa_traspaso"):
+        st.session_state.pagina = "mapa"
+        st.rerun()
     st.write(f"Operador: **{st.session_state.usuario_nombre}** — {pd.Timestamp.now().strftime('%d/%m/%Y')}")
 
     # Tabs: Traspasos, Muertes, Cambio de Etapa y Ventas
@@ -34,7 +38,38 @@ def mostrar_traspaso():
         mostrar_registro_venta()
 
 
+# Zonas permitidas como destino segun rol
+DESTINOS_POR_ROL = {
+    "gestacion":  ["Parideras"],
+    "parideras":  ["Gestacion", "Crecimiento"],
+    "crecimiento":["Crecimiento", "Gestacion"],
+}
+
+def _filtrar_destinos_por_rol(corrales: list, rol: str) -> list:
+    """Filtra corrales destino segun zona del encargado."""
+    zonas_permitidas = DESTINOS_POR_ROL.get(rol)
+    if not zonas_permitidas:
+        return corrales  # Admin y encargado_general ven todo
+    from database import fetch_all
+    corrales_zona = fetch_all(
+        "SELECT nombre FROM chiqueros WHERE zona IN ({})".format(
+            ",".join(["%s"] * len(zonas_permitidas))
+        ),
+        tuple(zonas_permitidas)
+    )
+    nombres_permitidos = {c["nombre"] for c in corrales_zona}
+    return [c for c in corrales if c["nombre"] in nombres_permitidos]
+
+
 def _mostrar_wizard_traspaso():
+
+    # Boton regresar al mapa
+    if st.button("← Regresar al mapa", key="btn_regresar_tras"):
+        st.session_state.pagina = "mapa"
+        st.session_state.pop("corral_presel", None)
+        st.rerun()
+
+    st.markdown("---")
 
     # Inicializar carrito
     if "destinos_temp" not in st.session_state:
@@ -50,16 +85,34 @@ def _mostrar_wizard_traspaso():
         return
 
     # Si viene preseleccionado desde tarjeta del mapa
+    rol = st.session_state.get("usuario_rol", "admin")
+    ZONAS_DESTINO_POR_ROL = {
+        "gestacion":  ["Parideras"],
+        "parideras":  ["Gestacion", "Crecimiento"],
+        "crecimiento":["Crecimiento", "Gestacion"],
+    }
+    zonas_destino_permitidas = ZONAS_DESTINO_POR_ROL.get(rol)  # None = sin restriccion
+
+    # Filtrar corrales de origen segun zona del encargado
+    from database import fetch_all as _fa
+    if zonas_destino_permitidas and rol in ["gestacion","parideras","crecimiento"]:
+        zona_origen = {"gestacion":"Gestacion","parideras":"Parideras","crecimiento":"Crecimiento"}.get(rol)
+        ids_zona = [r["id"] for r in _fa("SELECT id FROM chiqueros WHERE zona = %s", (zona_origen,))]
+        df_con_stock = df_con_stock[df_con_stock["id"].isin(ids_zona)]
+
     corrales_disponibles = df_con_stock["corral"].unique().tolist()
     presel = st.session_state.pop("corral_presel", None)
-    idx_presel = corrales_disponibles.index(presel) if presel and presel in corrales_disponibles else 0
 
-    origen_nombre = st.selectbox(
-        "Corral de origen:",
-        corrales_disponibles,
-        index=idx_presel,
-        key="origen_sel"
-    )
+    if presel and presel in corrales_disponibles:
+        # Viene desde tarjeta — origen bloqueado
+        origen_nombre = presel
+        st.info(f"📍 Origen: **{origen_nombre}**")
+    else:
+        origen_nombre = st.selectbox(
+            "Corral de origen:",
+            corrales_disponibles,
+            key="origen_sel"
+        )
     datos_origen = df_con_stock[df_con_stock["corral"] == origen_nombre].iloc[0]
     id_origen    = int(datos_origen["id"])
 
@@ -105,6 +158,27 @@ def _mostrar_wizard_traspaso():
     st.markdown("### 4. ¿A dónde van?")
     corrales_validos = get_chiqueros_disponibles_para(tipo_destino)
     corrales_validos = [c for c in corrales_validos if c["id"] != id_origen]
+
+    # Candados por zona — solo para encargados de zona, no para admin ni encargado_general
+    rol = st.session_state.get("usuario_rol", "admin")
+    if rol == "gestacion":
+        # Gestacion solo puede trasladar a Parideras
+        corrales_validos = [c for c in corrales_validos if c.get("zona") == "Parideras"]
+    elif rol == "parideras":
+        # Parideras: Pie de Cria va a Gestacion, Crias van a Crecimiento
+        if tipo_destino == "Pie de Cría":
+            corrales_validos = [c for c in corrales_validos if c.get("zona") == "Gestacion"]
+        elif tipo_destino == "Crías":
+            corrales_validos = [c for c in corrales_validos if c.get("zona") == "Crecimiento"]
+    elif rol == "crecimiento":
+        # Crecimiento: entre corrales de Crecimiento, o a Gestacion si es sustituto
+        if tipo_destino not in ("Pie de Cría", "Semental"):
+            corrales_validos = [c for c in corrales_validos if c.get("zona") == "Crecimiento"]
+        else:
+            corrales_validos = [c for c in corrales_validos if c.get("zona") == "Gestacion"]
+    # Aplicar candado por zona si es encargado de zona
+    rol_actual = st.session_state.get("usuario_rol", "admin")
+    corrales_validos = _filtrar_destinos_por_rol(corrales_validos, rol_actual)
 
     if not corrales_validos:
         st.warning(f"No hay corrales disponibles para {tipo_destino}.")
@@ -177,6 +251,7 @@ def _mostrar_wizard_traspaso():
                 st.session_state.destinos_temp = []
                 st.success("✅ Traspaso aplicado correctamente.")
                 time.sleep(1.5)
+                st.session_state.pagina = "mapa"
                 st.rerun()
 
         if col_limpiar.button("🗑️ Limpiar", use_container_width=True):
@@ -285,8 +360,12 @@ def mostrar_registro_muerte():
     col1, col2 = st.columns(2)
     corrales_m = df_con_stock["corral"].unique().tolist()
     presel_m = st.session_state.pop("corral_presel", None) if "corral_presel" in st.session_state else None
-    idx_m = corrales_m.index(presel_m) if presel_m and presel_m in corrales_m else 0
-    corral_sel = col1.selectbox("Corral:", corrales_m, index=idx_m, key="muerte_corral")
+
+    if presel_m and presel_m in corrales_m:
+        corral_sel = presel_m
+        col1.info(f"📍 **{corral_sel}**")
+    else:
+        corral_sel = col1.selectbox("Corral:", corrales_m, key="muerte_corral")
 
     datos_corral = df_con_stock[df_con_stock["corral"] == corral_sel].iloc[0]
     id_corral = int(datos_corral["id"])
@@ -374,6 +453,7 @@ def mostrar_registro_muerte():
         st.success(f"{cantidad} {tipo_animal} registrados como muerte. Causa: {causa}")
         import time
         time.sleep(1.5)
+        st.session_state.pagina = "mapa"
         st.rerun()
 
 
@@ -400,8 +480,12 @@ def mostrar_cambio_etapa():
     col1, col2 = st.columns(2)
     corrales_e = df_con_stock["corral"].unique().tolist()
     presel_e = st.session_state.pop("corral_presel", None) if "corral_presel" in st.session_state else None
-    idx_e = corrales_e.index(presel_e) if presel_e and presel_e in corrales_e else 0
-    corral_sel = col1.selectbox("Corral:", corrales_e, index=idx_e, key="etapa_corral")
+
+    if presel_e and presel_e in corrales_e:
+        corral_sel = presel_e
+        col1.info(f"📍 **{corral_sel}**")
+    else:
+        corral_sel = col1.selectbox("Corral:", corrales_e, key="etapa_corral")
 
     datos_corral = df_con_stock[df_con_stock["corral"] == corral_sel].iloc[0]
     id_corral = int(datos_corral["id"])
@@ -477,4 +561,5 @@ def mostrar_cambio_etapa():
 
         st.success(f"{cantidad} animales cambiados de {etapa_actual} a {nueva_etapa} en {corral_sel}.")
         time.sleep(1.5)
+        st.session_state.pagina = "mapa"
         st.rerun()
