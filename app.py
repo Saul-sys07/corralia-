@@ -26,7 +26,6 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# ── Estado de sesion ──────────────────────────────────────────────────────────
 def _init_session():
     defaults = {
         "autenticado": False,
@@ -41,7 +40,6 @@ def _init_session():
 
 _init_session()
 
-# ── Helpers de usuario ────────────────────────────────────────────────────────
 def _buscar_usuario(pin: str):
     return fetch_one("SELECT * FROM usuarios WHERE pin = %s AND activo = 1", (pin,))
 
@@ -60,7 +58,6 @@ def _registrar_acceso(usuario_id: int):
         (usuario_id,)
     )
 
-# ── Pantalla de login ─────────────────────────────────────────────────────────
 def mostrar_login():
     col = st.columns([1, 2, 1])[1]
     with col:
@@ -78,7 +75,6 @@ def mostrar_login():
                 st.error("PIN incorrecto.")
                 return
             if _es_primer_acceso(usuario):
-                # Guardar en sesion para la pantalla de activacion
                 st.session_state["activar_usuario"] = usuario
                 st.rerun()
             else:
@@ -90,7 +86,6 @@ def mostrar_login():
                 st.session_state.pagina         = "mapa"
                 st.rerun()
 
-# ── Pantalla de primer acceso ─────────────────────────────────────────────────
 def mostrar_primer_acceso():
     usuario = st.session_state.get("activar_usuario")
     if not usuario:
@@ -128,7 +123,6 @@ def mostrar_primer_acceso():
             if nuevo_pin != confirma_pin:
                 st.error("Los PINes no coinciden.")
                 return
-            # Verificar que el PIN no este en uso
             existente = fetch_one("SELECT id FROM usuarios WHERE pin = %s AND id != %s",
                                   (nuevo_pin, usuario["id"]))
             if existente:
@@ -137,7 +131,6 @@ def mostrar_primer_acceso():
 
             _activar_usuario(usuario["id"], nuevo_pin)
             _registrar_acceso(usuario["id"])
-
             st.session_state.pop("activar_usuario", None)
             st.session_state.autenticado    = True
             st.session_state.usuario_id     = usuario["id"]
@@ -152,7 +145,6 @@ def mostrar_primer_acceso():
             st.session_state.pop("activar_usuario", None)
             st.rerun()
 
-# ── Sidebar ───────────────────────────────────────────────────────────────────
 def mostrar_sidebar():
     rol = st.session_state.usuario_rol
 
@@ -170,18 +162,17 @@ def mostrar_sidebar():
         st.markdown("---")
         st.markdown("**Navegacion**")
 
-        # Mapa — todos lo ven
         if st.button("🗺️ Mapa de corrales", use_container_width=True):
             st.session_state.pagina = "mapa"
             st.rerun()
 
-        # Traspasos — todos excepto ayudante_general
-        if rol != "ayudante_general":
+        # Traspasos solo para Admin y Encargado General
+        # Encargados de zona usan los botones de las tarjetas del mapa
+        if rol in ("admin", "encargado_general"):
             if st.button("🔄 Traspasos", use_container_width=True):
                 st.session_state.pagina = "traspaso"
                 st.rerun()
 
-        # Reportes y Configuracion — solo admin
         if rol == "admin":
             if st.button("📊 Reportes", use_container_width=True):
                 st.session_state.pagina = "reportes"
@@ -198,7 +189,6 @@ def mostrar_sidebar():
 
         st.markdown("---")
 
-        # Boton de salida para todos excepto admin
         if rol != "admin":
             from modulos.checador import ya_checo_hoy, ya_registro_salida
             if ya_checo_hoy(st.session_state.usuario_id):
@@ -226,7 +216,6 @@ def _label_rol(rol: str) -> str:
     }
     return labels.get(rol, rol)
 
-# ── Router ────────────────────────────────────────────────────────────────────
 def routear_pagina():
     rol    = st.session_state.usuario_rol
     pagina = st.session_state.pagina
@@ -236,9 +225,15 @@ def routear_pagina():
         mostrar_mapa()
 
     elif pagina == "traspaso":
-        if rol == "ayudante_general":
+        if rol not in ("admin", "encargado_general", "parideras", "crecimiento", "gestacion"):
             st.error("Acceso restringido.")
             return
+        # Boton regresar al mapa
+        if st.button("← Regresar al mapa"):
+            st.session_state.pagina = "mapa"
+            st.session_state.pop("corral_presel", None)
+            st.session_state.pop("tab_presel", None)
+            st.rerun()
         from modulos.traspaso import mostrar_traspaso
         mostrar_traspaso()
 
@@ -267,6 +262,9 @@ def routear_pagina():
         if rol != "admin":
             st.error("Acceso restringido.")
             return
+        if st.button("← Regresar al mapa"):
+            st.session_state.pagina = "mapa"
+            st.rerun()
         from modulos.ventas import mostrar_historial_ventas
         mostrar_historial_ventas()
 
@@ -274,9 +272,7 @@ def routear_pagina():
         from modulos.checador import mostrar_registro_salida
         mostrar_registro_salida()
 
-# ── Main ──────────────────────────────────────────────────────────────────────
 def main():
-    # Primer acceso pendiente
     if "activar_usuario" in st.session_state and st.session_state["activar_usuario"]:
         mostrar_primer_acceso()
         return
@@ -287,7 +283,6 @@ def main():
 
     mostrar_sidebar()
 
-    # Checador — todos excepto admin deben checar entrada antes de operar
     if st.session_state.usuario_rol != "admin":
         from modulos.checador import ya_checo_hoy
         if not ya_checo_hoy(st.session_state.usuario_id):
