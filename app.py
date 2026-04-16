@@ -223,7 +223,6 @@ def routear_pagina():
         if rol not in ("admin", "encargado_general", "parideras", "crecimiento", "gestacion"):
             st.error("Acceso restringido.")
             return
-        # Boton regresar al mapa
         if st.button("← Regresar al mapa"):
             st.session_state.pagina = "mapa"
             st.session_state.pop("corral_presel", None)

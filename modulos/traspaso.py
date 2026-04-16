@@ -13,15 +13,15 @@ from config import TIPOS_ANIMAL
 
 
 def mostrar_traspaso():
-    st.title("Traspasos")
+    # Leer tab preseleccionado desde tarjeta del mapa
+    tab_presel = st.session_state.get("tab_presel", None)
+
+    titulos = {"muerte": "Registrar Muerte", "etapa": "Cambiar Etapa", "venta": "Registrar Venta"}
+    st.title(titulos.get(tab_presel, "Traspasos"))
     st.write(f"Operador: **{st.session_state.usuario_nombre}** — {pd.Timestamp.now().strftime('%d/%m/%Y')}")
 
 
 
-
-
-    # Leer tab preseleccionado desde tarjeta del mapa
-    tab_presel = st.session_state.get("tab_presel", None)
 
     # Si viene desde tarjeta, mostrar solo esa accion
     if tab_presel == "muerte":

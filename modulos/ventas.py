@@ -187,8 +187,6 @@ def mostrar_registro_venta():
             st.session_state.camara_bascula_activa = False
             st.rerun()
 
-    notas = st.text_area("Notas (opcional):", key="venta_notas")
-
     # ── Confirmar venta ───────────────────────────────────────────────────────
     puede_confirmar = (
         cliente is not None and
@@ -214,11 +212,11 @@ def mostrar_registro_venta():
         execute(
             """INSERT INTO ventas
                (cliente_id, usuario_id, tipo_animal, cantidad, peso_kg, precio_kg,
-                comision_kg, total_rancho, total_comision, foto_bascula, notas)
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                comision_kg, total_rancho, total_comision, foto_bascula)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
             (cliente["id"], st.session_state.usuario_id, tipo_animal, cantidad,
              peso_kg, precio_kg, comision_kg, total_rancho, total_comision,
-             st.session_state.foto_bascula_url, notas)
+             st.session_state.foto_bascula_url)
         )
 
         # Historial
