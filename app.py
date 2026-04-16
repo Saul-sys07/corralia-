@@ -166,12 +166,7 @@ def mostrar_sidebar():
             st.session_state.pagina = "mapa"
             st.rerun()
 
-        # Traspasos solo para Admin y Encargado General
-        # Encargados de zona usan los botones de las tarjetas del mapa
-        if rol in ("admin", "encargado_general"):
-            if st.button("🔄 Traspasos", use_container_width=True):
-                st.session_state.pagina = "traspaso"
-                st.rerun()
+
 
         if rol == "admin":
             if st.button("📊 Reportes", use_container_width=True):
