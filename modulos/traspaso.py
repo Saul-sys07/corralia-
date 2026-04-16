@@ -38,22 +38,9 @@ def mostrar_traspaso():
         mostrar_registro_venta()
         return
 
-    # Sin preseleccion — mostrar todos los tabs
-    tab1, tab2, tab3, tab4 = st.tabs(["Traspasos", "Registrar Muerte", "Cambiar Etapa", "Venta"])
-
-    with tab1:
-        _mostrar_alertas_celo()
-        _mostrar_wizard_traspaso()
-
-    with tab2:
-        mostrar_registro_muerte()
-
-    with tab3:
-        mostrar_cambio_etapa()
-
-    with tab4:
-        from modulos.ventas import mostrar_registro_venta
-        mostrar_registro_venta()
+    # Sin preseleccion — mostrar wizard de traspasos directo
+    _mostrar_alertas_celo()
+    _mostrar_wizard_traspaso()
 
 
 # Zonas permitidas como destino segun rol

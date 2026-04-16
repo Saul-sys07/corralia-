@@ -109,7 +109,13 @@ def mostrar_registro_venta():
         df_engorda = df_inv[df_inv["poblacion_actual"] > 0]
 
     col1, col2 = st.columns(2)
-    corral_sel = col1.selectbox("Corral:", df_engorda["corral"].unique().tolist(), key="venta_corral")
+    corrales_v = df_engorda["corral"].unique().tolist()
+    presel_v = st.session_state.pop("corral_presel", None) if "corral_presel" in st.session_state else None
+    if presel_v and presel_v in corrales_v:
+        corral_sel = presel_v
+        col1.info(f"📍 **{corral_sel}**")
+    else:
+        corral_sel = col1.selectbox("Corral:", corrales_v, key="venta_corral")
     datos_corral = df_engorda[df_engorda["corral"] == corral_sel].iloc[0]
     id_corral = int(datos_corral["id"])
 
