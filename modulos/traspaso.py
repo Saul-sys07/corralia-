@@ -107,9 +107,14 @@ def _mostrar_wizard_traspaso():
     corrales_disponibles = df_con_stock["corral"].unique().tolist()
     presel = st.session_state.pop("corral_presel", None)
 
-    if presel and presel in corrales_disponibles:
-        # Viene desde tarjeta — origen bloqueado
-        origen_nombre = presel
+    if "traspaso_origen_fijo" not in st.session_state:
+        if presel and presel in corrales_disponibles:
+            st.session_state.traspaso_origen_fijo = presel
+        else:
+            st.session_state.traspaso_origen_fijo = None
+    
+    if st.session_state.traspaso_origen_fijo:
+        origen_nombre = st.session_state.traspaso_origen_fijo
         st.info(f"📍 Origen: **{origen_nombre}**")
     else:
         origen_nombre = st.selectbox(
@@ -254,6 +259,8 @@ def _mostrar_wizard_traspaso():
                     st.error(e)
             else:
                 st.session_state.destinos_temp = []
+                st.session_state.pop("traspaso_origen_fijo", None)
+                st.session_state.pop("accion_activa", None)
                 st.success("✅ Traspaso aplicado correctamente.")
                 time.sleep(1.5)
                 st.session_state.pagina = "mapa"
@@ -364,10 +371,17 @@ def mostrar_registro_muerte():
 
     col1, col2 = st.columns(2)
     corrales_m = df_con_stock["corral"].unique().tolist()
-    presel_m = st.session_state.pop("corral_presel", None) if "corral_presel" in st.session_state else None
+    if "muerte_corral_fijo" not in st.session_state:
+        presel_m = st.session_state.pop("corral_presel", None)
+        if presel_m and presel_m in corrales_m:
+            st.session_state.muerte_corral_fijo = presel_m
+        else:
+            st.session_state.muerte_corral_fijo = None
+    else:
+        st.session_state.pop("corral_presel", None)
 
-    if presel_m and presel_m in corrales_m:
-        corral_sel = presel_m
+    if st.session_state.muerte_corral_fijo:
+        corral_sel = st.session_state.muerte_corral_fijo
         col1.info(f"📍 **{corral_sel}**")
     else:
         corral_sel = col1.selectbox("Corral:", corrales_m, key="muerte_corral")
@@ -456,6 +470,8 @@ def mostrar_registro_muerte():
         )
 
         st.cache_data.clear()
+        st.session_state.pop("muerte_corral_fijo", None)
+        st.session_state.pop("accion_activa", None)
         st.success(f"{cantidad} {tipo_animal} registrados como muerte. Causa: {causa}")
         import time
         time.sleep(1.5)
@@ -485,10 +501,18 @@ def mostrar_cambio_etapa():
 
     col1, col2 = st.columns(2)
     corrales_e = df_con_stock["corral"].unique().tolist()
-    presel_e = st.session_state.pop("corral_presel", None) if "corral_presel" in st.session_state else None
+    # Usar session_state para persistir el corral seleccionado entre reruns
+    if "etapa_corral_fijo" not in st.session_state:
+        presel_e = st.session_state.pop("corral_presel", None)
+        if presel_e and presel_e in corrales_e:
+            st.session_state.etapa_corral_fijo = presel_e
+        else:
+            st.session_state.etapa_corral_fijo = None
+    else:
+        st.session_state.pop("corral_presel", None)
 
-    if presel_e and presel_e in corrales_e:
-        corral_sel = presel_e
+    if st.session_state.etapa_corral_fijo:
+        corral_sel = st.session_state.etapa_corral_fijo
         col1.info(f"📍 **{corral_sel}**")
     else:
         corral_sel = col1.selectbox("Corral:", corrales_e, key="etapa_corral")
@@ -565,6 +589,8 @@ def mostrar_cambio_etapa():
              st.session_state.usuario_nombre, nota_final)
         )
 
+        st.session_state.pop("etapa_corral_fijo", None)
+        st.session_state.pop("accion_activa", None)
         st.success(f"{cantidad} animales cambiados de {etapa_actual} a {nueva_etapa} en {corral_sel}.")
         time.sleep(1.5)
         st.session_state.pagina = "mapa"
