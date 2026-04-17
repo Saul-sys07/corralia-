@@ -180,9 +180,6 @@ def _mostrar_wizard_traspaso():
             corrales_validos = [c for c in corrales_validos if c.get("zona") == "Crecimiento"]
         else:
             corrales_validos = [c for c in corrales_validos if c.get("zona") == "Gestacion"]
-    # Aplicar candado por zona si es encargado de zona
-    rol_actual = st.session_state.get("usuario_rol", "admin")
-    corrales_validos = _filtrar_destinos_por_rol(corrales_validos, rol_actual)
 
     if not corrales_validos:
         st.warning(f"No hay corrales disponibles para {tipo_destino}.")
