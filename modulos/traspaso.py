@@ -13,9 +13,12 @@ from config import TIPOS_ANIMAL
 
 
 def mostrar_traspaso():
-    # Si viene desde tarjeta, guardar accion en estado persistente
+    # Si viene desde tarjeta, actualizar accion activa
     if "tab_presel" in st.session_state:
         st.session_state["accion_activa"] = st.session_state.pop("tab_presel")
+    elif "accion_activa" in st.session_state and "corral_presel" not in st.session_state:
+        # Si no hay corral preseleccionado y no vino de tarjeta, limpiar accion
+        st.session_state.pop("accion_activa", None)
 
     accion = st.session_state.get("accion_activa", None)
 
