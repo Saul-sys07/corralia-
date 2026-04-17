@@ -203,6 +203,13 @@ def mostrar_sidebar():
             st.session_state.pagina = "mapa"
             st.rerun()
 
+def _limpiar_navegacion():
+    """Limpia todos los estados de navegacion."""
+    for key in ["corral_presel", "tab_presel", "accion_activa"]:
+        st.session_state.pop(key, None)
+    st.session_state.pagina = "mapa"
+
+
 def _label_rol(rol: str) -> str:
     labels = {
         "admin":             "Administrador",
@@ -227,13 +234,40 @@ def routear_pagina():
             st.error("Acceso restringido.")
             return
         if st.button("← Regresar al mapa"):
-            st.session_state.pagina = "mapa"
-            st.session_state.pop("corral_presel", None)
-            st.session_state.pop("tab_presel", None)
-            st.session_state.pop("accion_activa", None)
+            _limpiar_navegacion()
             st.rerun()
         from modulos.traspaso import mostrar_traspaso
         mostrar_traspaso()
+
+    elif pagina == "muerte":
+        if rol not in ("admin", "encargado_general", "parideras", "crecimiento", "gestacion"):
+            st.error("Acceso restringido.")
+            return
+        if st.button("← Regresar al mapa"):
+            _limpiar_navegacion()
+            st.rerun()
+        from modulos.traspaso import mostrar_registro_muerte
+        mostrar_registro_muerte()
+
+    elif pagina == "etapa":
+        if rol not in ("admin", "encargado_general", "parideras", "crecimiento", "gestacion"):
+            st.error("Acceso restringido.")
+            return
+        if st.button("← Regresar al mapa"):
+            _limpiar_navegacion()
+            st.rerun()
+        from modulos.traspaso import mostrar_cambio_etapa
+        mostrar_cambio_etapa()
+
+    elif pagina == "parto":
+        if rol not in ("admin", "encargado_general", "parideras"):
+            st.error("Acceso restringido.")
+            return
+        if st.button("← Regresar al mapa"):
+            _limpiar_navegacion()
+            st.rerun()
+        from modulos.traspaso import mostrar_registro_parto
+        mostrar_registro_parto()
 
     elif pagina == "reportes":
         if rol != "admin":

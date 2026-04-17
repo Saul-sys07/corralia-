@@ -13,34 +13,8 @@ from config import TIPOS_ANIMAL
 
 
 def mostrar_traspaso():
-    # Si viene desde tarjeta, actualizar accion activa
-    if "tab_presel" in st.session_state:
-        st.session_state["accion_activa"] = st.session_state.pop("tab_presel")
-    elif "accion_activa" in st.session_state and "corral_presel" not in st.session_state:
-        # Si no hay corral preseleccionado y no vino de tarjeta, limpiar accion
-        st.session_state.pop("accion_activa", None)
-
-    accion = st.session_state.get("accion_activa", None)
-
-    titulos = {"muerte": "Registrar Muerte", "etapa": "Cambiar Etapa", "venta": "Registrar Venta", "parto": "Registrar Parto"}
-    st.title(titulos.get(accion, "Traspasos"))
+    st.title("Traspasos")
     st.write(f"Operador: **{st.session_state.usuario_nombre}** — {pd.Timestamp.now().strftime('%d/%m/%Y')}")
-
-    if accion == "muerte":
-        mostrar_registro_muerte()
-        return
-    elif accion == "etapa":
-        mostrar_cambio_etapa()
-        return
-    elif accion == "venta":
-        from modulos.ventas import mostrar_registro_venta
-        mostrar_registro_venta()
-        return
-    elif accion == "parto":
-        mostrar_registro_parto()
-        return
-
-    # Sin accion — wizard de traspasos directo
     _mostrar_alertas_celo()
     _mostrar_wizard_traspaso()
 

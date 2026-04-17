@@ -225,8 +225,7 @@ def _tarjeta(row):
                 st.session_state.corral_presel = row['nombre']
                 st.rerun()
             if b2.button("💀 Muerte", key=f"muer_{row['id']}", use_container_width=True):
-                st.session_state.pagina = "traspaso"
-                st.session_state.tab_presel = "muerte"
+                st.session_state.pagina = "muerte"
                 st.session_state.corral_presel = row['nombre']
                 st.rerun()
 
@@ -234,8 +233,7 @@ def _tarjeta(row):
             if mostrar_parto and mostrar_venta:
                 b3, b4, b5 = st.columns(3)
                 if b3.button("📦 Etapa", key=f"etap_{row['id']}", use_container_width=True):
-                    st.session_state.pagina = "traspaso"
-                    st.session_state.tab_presel = "etapa"
+                    st.session_state.pagina = "etapa"
                     st.session_state.corral_presel = row['nombre']
                     st.rerun()
                 if b4.button("💰 Venta", key=f"vent_{row['id']}", use_container_width=True):
@@ -244,27 +242,23 @@ def _tarjeta(row):
                     st.session_state.corral_presel = row['nombre']
                     st.rerun()
                 if b5.button("🍼 Parto", key=f"parto_{row['id']}", use_container_width=True):
-                    st.session_state.pagina = "traspaso"
-                    st.session_state.tab_presel = "parto"
+                    st.session_state.pagina = "parto"
                     st.session_state.corral_presel = row['nombre']
                     st.rerun()
             elif mostrar_parto:
                 b3, b4 = st.columns(2)
                 if b3.button("📦 Etapa", key=f"etap_{row['id']}", use_container_width=True):
-                    st.session_state.pagina = "traspaso"
-                    st.session_state.tab_presel = "etapa"
+                    st.session_state.pagina = "etapa"
                     st.session_state.corral_presel = row['nombre']
                     st.rerun()
                 if b4.button("🍼 Parto", key=f"parto_{row['id']}", use_container_width=True):
-                    st.session_state.pagina = "traspaso"
-                    st.session_state.tab_presel = "parto"
+                    st.session_state.pagina = "parto"
                     st.session_state.corral_presel = row['nombre']
                     st.rerun()
             elif mostrar_venta:
                 b3, b4 = st.columns(2)
                 if b3.button("📦 Etapa", key=f"etap_{row['id']}", use_container_width=True):
-                    st.session_state.pagina = "traspaso"
-                    st.session_state.tab_presel = "etapa"
+                    st.session_state.pagina = "etapa"
                     st.session_state.corral_presel = row['nombre']
                     st.rerun()
                 if b4.button("💰 Venta", key=f"vent_{row['id']}", use_container_width=True):
@@ -275,7 +269,6 @@ def _tarjeta(row):
             else:
                 b3, = st.columns(1)
                 if b3.button("📦 Etapa", key=f"etap_{row['id']}", use_container_width=True):
-                    st.session_state.pagina = "traspaso"
-                    st.session_state.tab_presel = "etapa"
+                    st.session_state.pagina = "etapa"
                     st.session_state.corral_presel = row['nombre']
                     st.rerun()
