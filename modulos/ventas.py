@@ -180,46 +180,12 @@ def mostrar_registro_venta():
 
     st.markdown("---")
 
-    # ── Paso 4: Foto bascula (obligatoria) ────────────────────────────────────
-    st.markdown("**4. Foto de báscula (obligatoria)**")
-
-    if "camara_bascula_activa" not in st.session_state:
-        st.session_state.camara_bascula_activa = False
-    if "foto_bascula_url" not in st.session_state:
-        st.session_state.foto_bascula_url = None
-
-    if st.session_state.foto_bascula_url:
-        st.success("Foto de báscula lista.")
-        if st.button("Cambiar foto", key="btn_cambiar_foto"):
-            st.session_state.foto_bascula_url = None
-            st.rerun()
-    elif not st.session_state.camara_bascula_activa:
-        if st.button("Tomar foto de báscula", type="primary", key="btn_cam_bascula"):
-            st.session_state.camara_bascula_activa = True
-            st.rerun()
-    else:
-        foto = st.camera_input("Foto de báscula:", key="cam_bascula")
-        if foto:
-            nombre_foto = f"corralia/ventas/{st.session_state.usuario_nombre}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-            resultado = cloudinary.uploader.upload(
-                foto.getbuffer(),
-                public_id=nombre_foto,
-                overwrite=True,
-            )
-            st.session_state.foto_bascula_url = resultado["secure_url"]
-            st.session_state.camara_bascula_activa = False
-            st.success("Foto guardada.")
-            st.rerun()
-        if st.button("Cancelar", key="btn_cancel_bascula"):
-            st.session_state.camara_bascula_activa = False
-            st.rerun()
-
     # ── Confirmar venta ───────────────────────────────────────────────────────
+    st.session_state.foto_bascula_url = None  # Sin foto por ahora
     puede_confirmar = (
         cliente is not None and
         (peso_kg > 0 or precio_cabeza > 0) and
-        (precio_kg > 0 or precio_cabeza > 0) and
-        st.session_state.foto_bascula_url is not None
+        (precio_kg > 0 or precio_cabeza > 0)
     )
 
     if st.button(
@@ -243,8 +209,7 @@ def mostrar_registro_venta():
                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
             (cliente["id"], st.session_state.usuario_id, tipo_animal, cantidad,
              peso_kg, precio_kg if not es_destete else precio_cabeza,
-             comision_kg, total_rancho, total_comision,
-             st.session_state.foto_bascula_url)
+             comision_kg, total_rancho, total_comision, None)
         )
 
         # Historial
@@ -253,7 +218,7 @@ def mostrar_registro_venta():
                (id_chiquero_destino, tipo_animal, cantidad, tipo_evento, id_usuario, notas, foto_evidencia)
                VALUES (%s, %s, %s, 'VENTA', %s, %s, %s)""",
             (id_corral, tipo_animal, cantidad, st.session_state.usuario_nombre,
-             f"Venta a {cliente['nombre']} — ${total_venta:,.2f}", st.session_state.foto_bascula_url)
+             f"Venta a {cliente['nombre']} — ${total_venta:,.2f}", None)
         )
 
         st.session_state.foto_bascula_url = None

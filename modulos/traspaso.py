@@ -379,31 +379,7 @@ def mostrar_registro_muerte():
     if causa == "Otro":
         notas = st.text_input("Especifica la causa:", key="muerte_notas")
 
-    # Foto opcional
-    if "camara_muerte_activa" not in st.session_state:
-        st.session_state.camara_muerte_activa = False
-
     foto_url = None
-    if not st.session_state.camara_muerte_activa:
-        if st.button("Tomar foto (opcional)", key="btn_cam_muerte"):
-            st.session_state.camara_muerte_activa = True
-            st.rerun()
-    else:
-        foto = st.camera_input("Foto de evidencia:", key="cam_muerte")
-        if foto:
-            nombre_foto = f"corralia/muertes/{st.session_state.usuario_nombre}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-            resultado = cloudinary.uploader.upload(
-                foto.getbuffer(),
-                public_id=nombre_foto,
-                overwrite=True,
-            )
-            foto_url = resultado["secure_url"]
-            st.session_state.camara_muerte_activa = False
-            st.success("Foto guardada.")
-            st.rerun()
-        if st.button("Sin foto", key="btn_sin_foto_muerte"):
-            st.session_state.camara_muerte_activa = False
-            st.rerun()
 
     if st.button("Registrar muerte", type="primary", use_container_width=True, key="btn_muerte"):
         if disponible < cantidad:
