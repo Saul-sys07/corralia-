@@ -125,9 +125,24 @@ def mostrar_registro_venta():
     # ── Paso 3: Precio y peso ─────────────────────────────────────────────────
     st.markdown("**3. Precio**")
 
+    # Leer precio del sistema — lo fija Saul en Configuracion
+    from database import fetch_one as _fetch_one
+    row_precio = _fetch_one("SELECT valor FROM configuracion WHERE clave = 'precio_kg'")
+    precio_sistema = float(row_precio["valor"]) if row_precio else 48.00
+
+    rol_actual = st.session_state.get("usuario_rol", "admin")
+
     col3, col4 = st.columns(2)
-    peso_kg    = col3.number_input("Peso total (kg):", min_value=0.1, step=0.5, key="venta_peso")
-    precio_kg  = col4.number_input("Precio por kg ($):", min_value=0.0, step=0.5, key="venta_precio")
+    peso_kg = col3.number_input("Peso total (kg):", min_value=0.1, step=0.5, key="venta_peso")
+
+    if rol_actual == "admin":
+        # Saul puede modificar el precio
+        precio_kg = col4.number_input("Precio por kg ($):", min_value=0.0,
+                                       value=precio_sistema, step=0.50, key="venta_precio")
+    else:
+        # Beyin ve el precio fijo
+        precio_kg = precio_sistema
+        col4.info(f"Precio del día: **${precio_kg}/kg**")
 
     # Comision automatica segun tipo de cliente
     comision_kg = COMISIONES.get(cliente["tipo"], 0.0) if cliente else 0.0

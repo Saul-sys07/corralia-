@@ -17,6 +17,9 @@ def mostrar_configuracion():
     st.title("Configuracion")
     st.caption("Panel exclusivo de administracion - Saul")
 
+    mostrar_precio_venta()
+
+    st.markdown("---")
     tab1, tab2 = st.tabs(["Registrar Animales", "Corrales"])
 
     with tab1:
@@ -203,3 +206,32 @@ def mostrar_configuracion():
                     st.success(f"Corral '{nombre}' creado en zona {nueva_zona}.")
                     time.sleep(1)
                     st.rerun()
+
+
+def mostrar_precio_venta():
+    """Configuracion del precio por kg — solo Admin."""
+    from database import fetch_one, execute
+    st.markdown("---")
+    st.subheader("Precio de venta por kg")
+    st.caption("Saul actualiza el precio del dia segun el mercado")
+
+    row = fetch_one("SELECT valor FROM configuracion WHERE clave = 'precio_kg'")
+    precio_actual = float(row["valor"]) if row else 48.00
+
+    st.info(f"Precio actual: **${precio_actual}/kg**")
+
+    nuevo_precio = st.number_input(
+        "Nuevo precio por kg ($):",
+        min_value=1.0,
+        value=precio_actual,
+        step=0.50,
+        key="nuevo_precio_kg"
+    )
+
+    if st.button("Actualizar precio", type="primary", use_container_width=True):
+        execute(
+            "INSERT INTO configuracion (clave, valor) VALUES ('precio_kg', %s) ON DUPLICATE KEY UPDATE valor = %s",
+            (str(nuevo_precio), str(nuevo_precio))
+        )
+        st.success(f"Precio actualizado a ${nuevo_precio}/kg")
+        st.rerun()
