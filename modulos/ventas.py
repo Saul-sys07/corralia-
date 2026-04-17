@@ -59,9 +59,11 @@ def mostrar_registro_venta():
 
     from modulos.lotes import get_inventario_completo, get_lote
 
-    # Limpiar estados de navegacion para evitar redirects
+    # Limpiar estados de navegacion y camara
     corral_origen = st.session_state.pop("corral_presel", None)
     st.session_state.pop("tab_presel", None)
+    st.session_state.pop("camara_bascula_activa", None)
+    st.session_state.pop("foto_bascula_url", None)
 
     # ── Paso 1: Cliente ───────────────────────────────────────────────────────
     st.markdown("**1. Cliente**")
@@ -209,7 +211,7 @@ def mostrar_registro_venta():
                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
             (cliente["id"], st.session_state.usuario_id, tipo_animal, cantidad,
              peso_kg, precio_kg if not es_destete else precio_cabeza,
-             comision_kg, total_rancho, total_comision, None)
+             comision_kg, total_rancho, total_comision, "")
         )
 
         # Historial
@@ -221,20 +223,15 @@ def mostrar_registro_venta():
              f"Venta a {cliente['nombre']} — ${total_venta:,.2f}", None)
         )
 
-        st.session_state.foto_bascula_url = None
         st.session_state.pop("accion_activa", None)
         st.success(f"Venta registrada. Total: ${total_venta:,.2f} | Comisión: ${total_comision:,.2f}")
         st.session_state.pagina = "mapa"
         time.sleep(2)
         st.rerun()
 
-    if not puede_confirmar and precio_kg > 0:
-        faltante = []
+    if not puede_confirmar:
         if not cliente:
-            faltante.append("buscar cliente por teléfono")
-        if not st.session_state.foto_bascula_url:
-            faltante.append("foto de báscula")
-        st.warning(f"Falta: {', '.join(faltante)}")
+            st.warning("Selecciona un cliente para continuar.")
 
 
 # ── Historial de ventas (para Admin) ─────────────────────────────────────────
