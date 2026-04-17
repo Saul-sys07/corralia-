@@ -10,7 +10,6 @@ ZONAS = [
     {"key": "Crecimiento", "icono": "📈"},
 ]
 
-# Mapa de zona segun rol
 ZONA_POR_ROL = {
     "parideras":  ["Parideras"],
     "gestacion":  ["Gestacion"],
@@ -18,8 +17,6 @@ ZONA_POR_ROL = {
 }
 
 def mostrar_mapa():
-
-    # Ayudantes generales solo ven el checador de salida
     rol = st.session_state.get("usuario_rol", "admin")
     if rol == "ayudante_general":
         from modulos.checador import mostrar_checador
@@ -31,10 +28,8 @@ def mostrar_mapa():
     if col_refresh.button("🔄 Actualizar", use_container_width=True):
         st.rerun()
 
-    # Filtrar zonas segun rol
-    zonas_visibles = ZONA_POR_ROL.get(rol)  # None = ve todo
+    zonas_visibles = ZONA_POR_ROL.get(rol)
 
-    # Banner criticos
     criticos = get_resumen_criticos()
     msgs = []
     if criticos.get("Herniados", 0) > 0:
@@ -44,23 +39,17 @@ def mostrar_mapa():
     if msgs:
         st.error("  ·  ".join(msgs))
 
-    # Alertas capacidad
     alertas_cap = get_alertas_capacidad()
-    rojos    = [a for a in alertas_cap if a["nivel"] == "rojo"]
+    rojos     = [a for a in alertas_cap if a["nivel"] == "rojo"]
     amarillos = [a for a in alertas_cap if a["nivel"] == "amarillo"]
     if rojos:
         st.error("🚨 Excedidos: " + ", ".join(a["nombre"] for a in rojos))
     if amarillos:
         st.warning("⚠️ Al limite: " + ", ".join(a["nombre"] for a in amarillos))
 
-    # Filtro
-    filtro_estado = st.selectbox(
-        "Mostrar:", ["Todos", "Solo ocupados"], key="filtro_estado"
-    )
-
+    filtro_estado = st.selectbox("Mostrar:", ["Todos", "Solo ocupados"], key="filtro_estado")
     st.markdown("---")
 
-    # Metricas globales
     todos = fetch_all("""
         SELECT c.id, c.capacidad_max,
                IFNULL(SUM(l.poblacion_actual),0) AS pob
@@ -75,11 +64,9 @@ def mostrar_mapa():
     c1.metric("Total animales", total_animales)
     c2.metric("Corrales ocupados", f"{ocupados_total} / {len(todos)}")
     c3.metric("Corrales vacios", len(todos) - ocupados_total)
-
     st.markdown("---")
 
     for zona in ZONAS:
-        # Si el usuario tiene zona restringida, solo mostrar la suya
         if zonas_visibles and zona["key"] not in zonas_visibles:
             continue
         _renderizar_zona(zona, filtro_estado)
@@ -87,34 +74,25 @@ def mostrar_mapa():
 
 def _renderizar_zona(zona, filtro_estado):
     sql = """
-        SELECT
-            c.id, c.nombre, c.tipo, c.zona,
-            c.capacidad_max,
-            IFNULL(c.area_m2, c.largo * c.ancho) AS area_m2,
-            IFNULL(SUM(l.poblacion_actual), 0)   AS poblacion_actual,
-            IFNULL(GROUP_CONCAT(
-                DISTINCT l.tipo_animal ORDER BY l.tipo_animal SEPARATOR ' / '
-            ), 'VACIO') AS tipo_animal,
-            MAX(l.fecha_parto_estimada) AS fecha_parto,
-            GROUP_CONCAT(
-                DISTINCT l.estado_pie_cria ORDER BY l.estado_pie_cria SEPARATOR ', '
-            ) AS estado_pie_cria
+        SELECT c.id, c.nombre, c.tipo, c.zona, c.capacidad_max,
+               IFNULL(c.area_m2, c.largo * c.ancho) AS area_m2,
+               IFNULL(SUM(l.poblacion_actual), 0) AS poblacion_actual,
+               IFNULL(GROUP_CONCAT(DISTINCT l.tipo_animal ORDER BY l.tipo_animal SEPARATOR ' / '), 'VACIO') AS tipo_animal,
+               MAX(l.fecha_parto_estimada) AS fecha_parto,
+               GROUP_CONCAT(DISTINCT l.estado_pie_cria ORDER BY l.estado_pie_cria SEPARATOR ', ') AS estado_pie_cria
         FROM chiqueros c
         LEFT JOIN lotes l ON c.id = l.id_chiquero AND l.poblacion_actual > 0
         WHERE c.zona = %s
-        GROUP BY c.id
-        ORDER BY c.nombre
+        GROUP BY c.id ORDER BY c.nombre
     """
     rows = fetch_all(sql, (zona["key"],))
     if not rows:
         return
 
-    total   = len(rows)
+    total    = len(rows)
     ocupados = sum(1 for r in rows if r["poblacion_actual"] > 0)
     animales = sum(r["poblacion_actual"] for r in rows)
-
-    # Filtrar si aplica
-    mostrar = rows if filtro_estado == "Todos" else [r for r in rows if r["poblacion_actual"] > 0]
+    mostrar  = rows if filtro_estado == "Todos" else [r for r in rows if r["poblacion_actual"] > 0]
 
     with st.expander(
         f"{zona['icono']} **{zona['key']}** — {ocupados}/{total} ocupados · {int(animales)} animales",
@@ -123,8 +101,6 @@ def _renderizar_zona(zona, filtro_estado):
         if not mostrar:
             st.caption("Todos los corrales vacios.")
             return
-
-        # Grid de 4 columnas para aprovechar espacio
         cols = st.columns(4)
         for i, row in enumerate(mostrar):
             with cols[i % 4]:
@@ -137,40 +113,20 @@ def _tarjeta(row):
     area = float(row["area_m2"] or 0)
     pct  = pob / cap
 
-    # Semaforo
-    es_exclusivo = any(t in str(row.get("tipo_animal", ""))
-                       for t in ["Semental", "Pie de Cr"])
+    es_exclusivo = any(t in str(row.get("tipo_animal", "")) for t in ["Semental", "Pie de Cr"])
     if pob == 0:
-        color_hex = "#9E9E9E"
-        color_barra = "#E0E0E0"
-        estado = "VACIO"
-        emoji = "⚫"
+        color_hex = "#9E9E9E"; color_barra = "#E0E0E0"; estado = "VACIO"; emoji = "⚫"
     elif es_exclusivo and pob <= cap:
-        color_hex = "#2E7D32"
-        color_barra = "#4CAF50"
-        estado = "OCUPADO"
-        emoji = "🟢"
+        color_hex = "#2E7D32"; color_barra = "#4CAF50"; estado = "OCUPADO"; emoji = "🟢"
     elif pct >= 1.0:
-        color_hex = "#C62828"
-        color_barra = "#EF5350"
-        estado = "EXCEDIDO"
-        emoji = "🔴"
+        color_hex = "#C62828"; color_barra = "#EF5350"; estado = "EXCEDIDO"; emoji = "🔴"
     elif pct >= 0.9:
-        color_hex = "#F57F17"
-        color_barra = "#FFC107"
-        estado = "AL LIMITE"
-        emoji = "🟡"
+        color_hex = "#F57F17"; color_barra = "#FFC107"; estado = "AL LIMITE"; emoji = "🟡"
     else:
-        color_hex = "#2E7D32"
-        color_barra = "#4CAF50"
-        estado = "OK"
-        emoji = "🟢"
+        color_hex = "#2E7D32"; color_barra = "#4CAF50"; estado = "OK"; emoji = "🟢"
 
-    # Barra de capacidad
     pct_barra = min(pct * 100, 100)
-    pct_vacio = 100 - pct_barra
 
-    # Info extra
     parto_html = ""
     if row.get("fecha_parto") and str(row["fecha_parto"]) not in ("None","NaT",""):
         try:
@@ -184,21 +140,18 @@ def _tarjeta(row):
         estado_pc = f"<div style='color:#7B1FA2;font-size:10px;'>{val}</div>"
 
     area_str = f"{area:.1f}m²" if area > 0 else ""
-
-    # Tipo de animal para mostrar en tarjeta
     tipo_animal_raw = str(row.get("tipo_animal", ""))
-    if pob == 0:
-        tipo_badge = ""
-    else:
-        tipo_badge = tipo_animal_raw if tipo_animal_raw != "VACIO" else ""
+    tipo_badge = tipo_animal_raw if (pob > 0 and tipo_animal_raw != "VACIO") else ""
 
-
-    with st.expander(f"{row['nombre']} — {pob}/{cap} {tipo_badge}", expanded=False):
+    with st.expander(f"{emoji} {row['nombre']} — {pob}/{cap} {tipo_badge}", expanded=False):
         st.markdown(f"""
-        <div style="border:2px solid {color_hex};border-radius:12px;padding:12px 10px;background:white;text-align:center;margin-bottom:6px;">
+        <div style="border:2px solid {color_hex};border-radius:12px;padding:12px 10px;
+                    background:white;text-align:center;margin-bottom:6px;">
             <div style="font-size:10px;color:{color_hex};font-weight:600;">{emoji} {estado}</div>
             <div style="font-size:28px;font-weight:800;color:#222;line-height:1.1;">{pob}</div>
-            <div style="font-size:11px;color:#888;margin-bottom:8px;">de {cap} {'lugar' if cap == 1 else 'lugares'}</div>
+            <div style="font-size:11px;color:#888;margin-bottom:8px;">
+                de {cap} {'lugar' if cap == 1 else 'lugares'}
+            </div>
             <div style="background:#f0f0f0;border-radius:20px;height:8px;overflow:hidden;margin:0 4px 6px;">
                 <div style="width:{pct_barra:.0f}%;height:100%;background:{color_barra};border-radius:20px;"></div>
             </div>
@@ -209,49 +162,49 @@ def _tarjeta(row):
         """, unsafe_allow_html=True)
 
         if pob > 0:
-            tipos_en_corral = [t.strip() for t in tipo_animal_raw.split("/") if t.strip() and t.strip() != "VACIO"]
+            tipos_en_corral = [t.strip() for t in tipo_animal_raw.split("/")
+                               if t.strip() and t.strip() != "VACIO"]
             if len(tipos_en_corral) > 1:
                 st.selectbox("Tipo:", tipos_en_corral, key=f"tipo_acc_{row['id']}")
-            st.markdown(f"""
-            <div style="display:flex;gap:6px;flex-wrap:nowrap;margin-top:6px;">
-                <div id="btn_tras_{row['id']}" style="flex:1"></div>
-                <div id="btn_muer_{row['id']}" style="flex:1"></div>
-                <div id="btn_etap_{row['id']}" style="flex:1"></div>
-                <div id="btn_vent_{row['id']}" style="flex:1"></div>
-            </div>
-            """, unsafe_allow_html=True)
+
             rol_actual = st.session_state.get("usuario_rol", "admin")
-            # Venta solo para Destete, Engorda y Desecho
             tipos_vendibles = {"Destete", "Engorda", "Desecho"}
             tiene_vendibles = any(t.strip() in tipos_vendibles for t in tipo_animal_raw.split("/"))
             mostrar_venta = rol_actual in ("admin", "encargado_general") and tiene_vendibles
 
-            # Centrar botones en contenedor de ancho fijo
-            st.markdown('<div style="max-width:280px;margin:0 auto;">', unsafe_allow_html=True)
-            if mostrar_venta:
-                b1, b2, b3, b4 = st.columns(4)
-            else:
-                b1, b2, b3 = st.columns(3)
+            # Botones con colores — Fila 1
+            b1, b2 = st.columns(2)
+            b1.markdown("""<style>
+                div[data-testid="stButton"] button[kind="secondary"] {background:#1976D2;color:white;border:none;}
+            </style>""", unsafe_allow_html=True)
 
-            if b1.button("🔄", key=f"tras_{row['id']}", use_container_width=True, help="Trasladar"):
+            if b1.button("🔄 Traslado", key=f"tras_{row['id']}", use_container_width=True):
                 st.session_state.pagina = "traspaso"
                 st.session_state.corral_presel = row['nombre']
                 st.rerun()
-            if b2.button("💀", key=f"muer_{row['id']}", use_container_width=True, help="Muerte"):
+            if b2.button("💀 Muerte", key=f"muer_{row['id']}", use_container_width=True):
                 st.session_state.pagina = "traspaso"
                 st.session_state.tab_presel = "muerte"
                 st.session_state.corral_presel = row['nombre']
                 st.rerun()
-            if b3.button("📦", key=f"etap_{row['id']}", use_container_width=True, help="Cambiar Etapa"):
-                st.session_state.pagina = "traspaso"
-                st.session_state.tab_presel = "etapa"
-                st.session_state.corral_presel = row['nombre']
-                st.rerun()
+
+            # Fila 2
             if mostrar_venta:
-                if b4.button("💰", key=f"vent_{row['id']}", use_container_width=True, help="Venta"):
+                b3, b4 = st.columns(2)
+                if b3.button("📦 Etapa", key=f"etap_{row['id']}", use_container_width=True):
+                    st.session_state.pagina = "traspaso"
+                    st.session_state.tab_presel = "etapa"
+                    st.session_state.corral_presel = row['nombre']
+                    st.rerun()
+                if b4.button("💰 Venta", key=f"vent_{row['id']}", use_container_width=True):
                     st.session_state.pagina = "traspaso"
                     st.session_state.tab_presel = "venta"
                     st.session_state.corral_presel = row['nombre']
                     st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
-            st.caption("🔄 Trasladar · 💀 Muerte · 📦 Etapa" + (" · 💰 Venta" if mostrar_venta else ""))
+            else:
+                b3, = st.columns(1)
+                if b3.button("📦 Etapa", key=f"etap_{row['id']}", use_container_width=True):
+                    st.session_state.pagina = "traspaso"
+                    st.session_state.tab_presel = "etapa"
+                    st.session_state.corral_presel = row['nombre']
+                    st.rerun()
