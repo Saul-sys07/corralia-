@@ -99,26 +99,33 @@ def mostrar_registro_venta():
     st.markdown("**2. Animales**")
 
     df_inv = pd.DataFrame(get_inventario_completo())
-    df_todos = df_inv[df_inv["poblacion_actual"] > 0]
+    
+    # Solo corrales con tipos vendibles
+    tipos_vendibles = {"Destete", "Engorda", "Desecho"}
+    df_vendibles = df_inv[
+        (df_inv["poblacion_actual"] > 0) &
+        (df_inv["tipo_animal"].apply(
+            lambda x: any(t.strip() in tipos_vendibles for t in str(x).split("/"))
+        ))
+    ]
 
-    col1, col2 = st.columns(2)
-    corrales_v = df_todos["corral"].unique().tolist()
+    if df_vendibles.empty:
+        st.info("No hay animales disponibles para venta (Destete, Engorda o Desecho).")
+        return
 
-    if corral_origen and corral_origen in corrales_v:
-        corral_sel = corral_origen
-        col1.info(f"📍 **{corral_sel}**")
-    else:
-        corral_sel = col1.selectbox("Corral:", corrales_v, key="venta_corral")
-    datos_corral = df_todos[df_todos["corral"] == corral_sel].iloc[0]
+    corrales_v = df_vendibles["corral"].unique().tolist()
+    corral_sel = st.radio("Corral:", corrales_v, key="venta_corral", horizontal=True)
+    datos_corral = df_vendibles[df_vendibles["corral"] == corral_sel].iloc[0]
     id_corral = int(datos_corral["id"])
 
+    # Solo tipos vendibles en ese corral
     tipos_en_corral = [t.strip() for t in str(datos_corral["tipo_animal"]).split("/")
-                       if t.strip() and t.strip() != "VACIO"]
-    tipo_animal = col2.selectbox("Tipo:", tipos_en_corral, key="venta_tipo_animal")
+                       if t.strip() in tipos_vendibles]
+    tipo_animal = st.radio("Tipo:", tipos_en_corral, key="venta_tipo_animal", horizontal=True)
 
     lote = get_lote(id_corral, tipo_animal)
     disponible = int(lote["poblacion_actual"]) if lote else 0
-    col2.caption(f"Disponibles: {disponible}")
+    st.caption(f"Disponibles: {disponible}")
 
     cantidad = st.number_input("Cantidad:", min_value=1, max_value=disponible, step=1, key="venta_cantidad")
 

@@ -346,7 +346,7 @@ def mostrar_registro_muerte():
     col1, col2 = st.columns(2)
     corrales_m = df_con_stock["corral"].unique().tolist()
     st.session_state.pop("corral_presel", None)
-    corral_sel = col1.selectbox("Corral:", corrales_m, key="muerte_corral")
+    corral_sel = st.radio("Corral:", corrales_m, key="muerte_corral", horizontal=True)
 
     datos_corral = df_con_stock[df_con_stock["corral"] == corral_sel].iloc[0]
     id_corral = int(datos_corral["id"])
@@ -354,11 +354,7 @@ def mostrar_registro_muerte():
     tipos_en_corral = [t.strip() for t in str(datos_corral["tipo_animal"]).split("/") 
                        if t.strip() and t.strip() != "VACIO"]
 
-    tipo_animal = col2.selectbox(
-        "Tipo de animal:",
-        tipos_en_corral,
-        key="muerte_tipo"
-    )
+    tipo_animal = st.radio("Tipo de animal:", tipos_en_corral, key="muerte_tipo", horizontal=True)
 
     lote = get_lote(id_corral, tipo_animal)
     disponible = int(lote["poblacion_actual"]) if lote else 0
@@ -440,7 +436,7 @@ def mostrar_cambio_etapa():
     col1, col2 = st.columns(2)
     corrales_e = df_con_stock["corral"].unique().tolist()
     st.session_state.pop("corral_presel", None)
-    corral_sel = col1.selectbox("Corral:", corrales_e, key="etapa_corral")
+    corral_sel = st.radio("Corral:", corrales_e, key="etapa_corral", horizontal=True)
 
     datos_corral = df_con_stock[df_con_stock["corral"] == corral_sel].iloc[0]
     id_corral = int(datos_corral["id"])
@@ -448,11 +444,7 @@ def mostrar_cambio_etapa():
     tipos_en_corral = [t.strip() for t in str(datos_corral["tipo_animal"]).split("/")
                        if t.strip() and t.strip() != "VACIO"]
 
-    etapa_actual = col2.selectbox(
-        "Etapa actual:",
-        tipos_en_corral,
-        key="etapa_actual"
-    )
+    etapa_actual = st.radio("Etapa actual:", tipos_en_corral, key="etapa_actual", horizontal=True)
 
     lote = get_lote(id_corral, etapa_actual)
     disponible = int(lote["poblacion_actual"]) if lote else 0
@@ -478,11 +470,7 @@ def mostrar_cambio_etapa():
         return
 
     col3, col4 = st.columns(2)
-    nueva_etapa = col3.selectbox(
-        "Nueva etapa:",
-        etapas_destino,
-        key="etapa_nueva"
-    )
+    nueva_etapa = st.radio("Nueva etapa:", etapas_destino, key="etapa_nueva", horizontal=True)
 
     cantidad = col4.number_input(
         "Cantidad:",
@@ -551,7 +539,7 @@ def mostrar_registro_parto():
     presel_p = st.session_state.pop("corral_presel", None)
 
     st.session_state.pop("corral_presel", None)
-    corral_sel = st.selectbox("Paridera:", corrales_p, key="parto_corral")
+    corral_sel = st.radio("Paridera:", corrales_p, key="parto_corral", horizontal=True)
 
     datos_corral = df_parideras[df_parideras["corral"] == corral_sel].iloc[0]
     id_corral = int(datos_corral["id"])
