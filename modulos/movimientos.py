@@ -1,3 +1,4 @@
+import streamlit as st
 """
 models/movimientos.py — Corralia v3
 Historial de movimientos, alertas del sistema y consultas de auditoría.
@@ -150,6 +151,7 @@ def generar_alertas_partos_proximos(dias: int = 7) -> int:
     return creadas
 
 
+@st.cache_data(ttl=30)
 def get_resumen_criticos() -> dict:
     """
     Devuelve totales de animales críticos (Herniados, Desecho).

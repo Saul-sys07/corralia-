@@ -1,3 +1,4 @@
+import streamlit as st
 """
 models/lotes.py — Corralia v3
 Motor central del sistema: registro de animales, flujo de estados
@@ -47,6 +48,7 @@ def get_lote(id_chiquero: int, tipo_animal: str) -> Optional[dict]:
     )
 
 
+@st.cache_data(ttl=30)
 def get_inventario_completo() -> list[dict]:
     """
     Vista completa para el mapa táctico y el dashboard.

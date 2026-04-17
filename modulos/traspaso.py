@@ -455,6 +455,7 @@ def mostrar_registro_muerte():
              st.session_state.usuario_nombre, nota_final, foto_url)
         )
 
+        st.cache_data.clear()
         st.success(f"{cantidad} {tipo_animal} registrados como muerte. Causa: {causa}")
         import time
         time.sleep(1.5)

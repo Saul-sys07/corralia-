@@ -1,3 +1,4 @@
+import streamlit as st
 """
 models/chiqueros.py — Corralia v3
 Consultas y validaciones relacionadas con chiqueros.
@@ -186,6 +187,7 @@ def actualizar_chiquero(id_chiquero: int, nombre: str, tipo: str, largo: float, 
 
 # ─── Alertas de capacidad ─────────────────────────────────────────────────────
 
+@st.cache_data(ttl=30)
 def get_alertas_capacidad() -> list[dict]:
     """
     Devuelve chiqueros al 90%+ de capacidad.
