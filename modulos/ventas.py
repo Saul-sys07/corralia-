@@ -62,38 +62,39 @@ def mostrar_registro_venta():
     # ── Paso 1: Cliente ───────────────────────────────────────────────────────
     st.markdown("**1. Cliente**")
 
-    telefono = st.text_input("Teléfono del cliente:", placeholder="10 dígitos", key="venta_tel")
+    busqueda = st.text_input("Buscar cliente por nombre o teléfono:", 
+                              placeholder="Nombre o 10 dígitos", key="venta_busqueda")
 
     cliente = None
-    es_sin_comision = False
 
-    if telefono and len(telefono) >= 10:
-        cliente = get_cliente_por_telefono(telefono)
-        if cliente:
-            st.success(f"Cliente: **{cliente['nombre']}** — {cliente['tipo']} — Vendedor: {cliente['vendedor']}")
-        else:
-            st.warning("Cliente nuevo — registra sus datos:")
-            col1, col2, col3 = st.columns(3)
-            nuevo_nombre = col1.text_input("Nombre:", key="venta_nombre")
-            nuevo_tipo   = col2.selectbox("Tipo:", ["Nuevo", "Retenido", "Recuperado"], key="venta_tipo_cli")
+    if busqueda and len(busqueda) >= 3:
+        # Buscar por telefono o nombre
+        resultados = fetch_all(
+            """SELECT c.*, u.nombre AS vendedor 
+               FROM clientes c 
+               LEFT JOIN usuarios u ON u.id = c.usuario_id
+               WHERE (c.telefono = %s OR c.nombre LIKE %s)
+               AND c.activo = 1
+               LIMIT 5""",
+            (busqueda, f"%{busqueda}%")
+        )
 
-            # Vendedor — si es Saúl o papá, sin comisión
-            usuarios = fetch_all("SELECT id, nombre FROM usuarios WHERE activo = 1 ORDER BY nombre")
-            nombres_u = {u["nombre"]: u["id"] for u in usuarios}
-            vendedor_sel = col3.selectbox("Vendedor:", list(nombres_u.keys()), key="venta_vendedor")
-
-            sin_comision = st.checkbox("Venta de Saúl/papá (sin comisión)", key="venta_sin_com")
-
-            if st.button("Registrar cliente", key="btn_reg_cliente"):
-                if not nuevo_nombre:
-                    st.error("El nombre es obligatorio.")
-                else:
-                    usuario_id = nombres_u[vendedor_sel]
-                    nuevo_id = crear_cliente(nuevo_nombre, telefono, nuevo_tipo, usuario_id)
-                    st.success(f"Cliente '{nuevo_nombre}' registrado.")
-                    time.sleep(1)
-                    st.rerun()
+        if not resultados:
+            st.error("Cliente no encontrado. Pide a Saúl que lo registre en el módulo de Clientes.")
             return
+        elif len(resultados) == 1:
+            cliente = resultados[0]
+            st.success(f"Cliente: **{cliente['nombre']}** — {cliente['tipo']} — Vendedor: {cliente['vendedor']} — Comisión: ${COMISIONES.get(cliente['tipo'], 0)}/kg")
+        else:
+            # Multiples resultados — seleccionar
+            opciones = {f"{r['nombre']} ({r['telefono']})": r for r in resultados}
+            sel = st.selectbox("Varios resultados, selecciona:", list(opciones.keys()), key="venta_sel_cliente")
+            cliente = opciones[sel]
+            st.success(f"Cliente: **{cliente['nombre']}** — {cliente['tipo']} — Comisión: ${COMISIONES.get(cliente['tipo'], 0)}/kg")
+
+    if not cliente:
+        st.info("Escribe al menos 3 caracteres para buscar.")
+        return
 
     st.markdown("---")
 
