@@ -85,11 +85,7 @@ def _mostrar_wizard_traspaso():
     presel = st.session_state.pop("corral_presel", None)
 
     st.session_state.pop("corral_presel", None)
-    origen_nombre = st.selectbox(
-        "Corral de origen:",
-        corrales_disponibles,
-        key="origen_sel"
-    )
+    origen_nombre = st.radio("Corral de origen:", corrales_disponibles, key="origen_sel", horizontal=True)
     datos_origen = df_con_stock[df_con_stock["corral"] == origen_nombre].iloc[0]
     id_origen    = int(datos_origen["id"])
 
@@ -104,7 +100,7 @@ def _mostrar_wizard_traspaso():
     st.markdown("### 2. ¿Qué se mueve?")
     col_tipo, col_cant = st.columns(2)
 
-    tipo_a_mover = col_tipo.selectbox("Tipo de animal:", tipos_en_corral, key="tipo_sel")
+    tipo_a_mover = st.radio("Tipo de animal:", tipos_en_corral, key="tipo_sel", horizontal=True)
 
     # Buscar población disponible de ese tipo específico
     from modulos.lotes import get_lote
@@ -135,7 +131,7 @@ def _mostrar_wizard_traspaso():
         else:
             idx_actual = TIPOS_ANIMAL.index(tipo_a_mover) if tipo_a_mover in TIPOS_ANIMAL else 0
             opciones_avance = TIPOS_ANIMAL[idx_actual:]
-        tipo_destino = st.selectbox("Nueva etapa en destino:", opciones_avance, key="etapa_dest")
+        tipo_destino = st.radio("Nueva etapa en destino:", opciones_avance, key="etapa_dest", horizontal=True)
 
     # ── PASO 4: Destino ───────────────────────────────────────────────────────
     st.markdown("### 4. ¿A dónde van?")
@@ -170,7 +166,7 @@ def _mostrar_wizard_traspaso():
 
     nombres_destino = [c["nombre"] for c in corrales_validos]
     col_dest, col_add = st.columns([3, 1])
-    dest_nombre = col_dest.selectbox("Corral destino:", nombres_destino, key="dest_sel")
+    dest_nombre = st.radio("Corral destino:", nombres_destino, key="dest_sel", horizontal=True)
     id_destino  = next(c["id"] for c in corrales_validos if c["nombre"] == dest_nombre)
 
     # Info del destino seleccionado
@@ -378,7 +374,7 @@ def mostrar_registro_muerte():
         key="muerte_cantidad"
     )
 
-    causa = col4.selectbox("Causa:", CAUSAS, key="muerte_causa")
+    causa = st.radio("Causa:", CAUSAS, key="muerte_causa", horizontal=True)
 
     notas = ""
     if causa == "Otro":
