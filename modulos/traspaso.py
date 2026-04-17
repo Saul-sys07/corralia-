@@ -107,14 +107,8 @@ def _mostrar_wizard_traspaso():
     corrales_disponibles = df_con_stock["corral"].unique().tolist()
     presel = st.session_state.pop("corral_presel", None)
 
-    if "traspaso_origen_fijo" not in st.session_state:
-        if presel and presel in corrales_disponibles:
-            st.session_state.traspaso_origen_fijo = presel
-        else:
-            st.session_state.traspaso_origen_fijo = None
-    
-    if st.session_state.traspaso_origen_fijo:
-        origen_nombre = st.session_state.traspaso_origen_fijo
+    if presel and presel in corrales_disponibles:
+        origen_nombre = presel
         st.info(f"📍 Origen: **{origen_nombre}**")
     else:
         origen_nombre = st.selectbox(
@@ -371,17 +365,9 @@ def mostrar_registro_muerte():
 
     col1, col2 = st.columns(2)
     corrales_m = df_con_stock["corral"].unique().tolist()
-    if "muerte_corral_fijo" not in st.session_state:
-        presel_m = st.session_state.pop("corral_presel", None)
-        if presel_m and presel_m in corrales_m:
-            st.session_state.muerte_corral_fijo = presel_m
-        else:
-            st.session_state.muerte_corral_fijo = None
-    else:
-        st.session_state.pop("corral_presel", None)
-
-    if st.session_state.muerte_corral_fijo:
-        corral_sel = st.session_state.muerte_corral_fijo
+    presel_m = st.session_state.pop("corral_presel", None)
+    if presel_m and presel_m in corrales_m:
+        corral_sel = presel_m
         col1.info(f"📍 **{corral_sel}**")
     else:
         corral_sel = col1.selectbox("Corral:", corrales_m, key="muerte_corral")
@@ -501,18 +487,9 @@ def mostrar_cambio_etapa():
 
     col1, col2 = st.columns(2)
     corrales_e = df_con_stock["corral"].unique().tolist()
-    # Usar session_state para persistir el corral seleccionado entre reruns
-    if "etapa_corral_fijo" not in st.session_state:
-        presel_e = st.session_state.pop("corral_presel", None)
-        if presel_e and presel_e in corrales_e:
-            st.session_state.etapa_corral_fijo = presel_e
-        else:
-            st.session_state.etapa_corral_fijo = None
-    else:
-        st.session_state.pop("corral_presel", None)
-
-    if st.session_state.etapa_corral_fijo:
-        corral_sel = st.session_state.etapa_corral_fijo
+    presel_e = st.session_state.pop("corral_presel", None)
+    if presel_e and presel_e in corrales_e:
+        corral_sel = presel_e
         col1.info(f"📍 **{corral_sel}**")
     else:
         corral_sel = col1.selectbox("Corral:", corrales_e, key="etapa_corral")
@@ -559,8 +536,6 @@ def mostrar_cambio_etapa():
         key="etapa_cantidad"
     )
 
-    notas = st.text_input("Notas (opcional):", key="etapa_notas")
-
     if st.button("Cambiar etapa", type="primary", use_container_width=True, key="btn_cambiar_etapa"):
         # Restar de etapa actual
         execute(
@@ -580,7 +555,7 @@ def mostrar_cambio_etapa():
         )
 
         # Historial
-        nota_final = notas or f"Cambio de etapa: {etapa_actual} -> {nueva_etapa} sin traspaso fisico"
+        nota_final = f"Cambio de etapa: {etapa_actual} -> {nueva_etapa} sin traspaso fisico"
         execute(
             """INSERT INTO historial_movimientos
                (id_chiquero_destino, tipo_animal, cantidad, tipo_evento, id_usuario, notas)
