@@ -47,10 +47,6 @@ def mostrar_mapa():
     if amarillos:
         st.warning("⚠️ Al limite: " + ", ".join(a["nombre"] for a in amarillos))
 
-    filtro_estado = st.selectbox(
-        "Mostrar:", ["Solo ocupados", "Todos"], key="filtro_estado"
-    )
-
     st.markdown("---")
 
     todos = fetch_all("""
@@ -73,10 +69,10 @@ def mostrar_mapa():
     for zona in ZONAS:
         if zonas_visibles and zona["key"] not in zonas_visibles:
             continue
-        _renderizar_zona(zona, filtro_estado)
+        _renderizar_zona(zona)
 
 
-def _renderizar_zona(zona, filtro_estado):
+def _renderizar_zona(zona):
     sql = """
         SELECT
             c.id, c.nombre, c.tipo, c.zona,
@@ -104,18 +100,12 @@ def _renderizar_zona(zona, filtro_estado):
     ocupados = sum(1 for r in rows if r["poblacion_actual"] > 0)
     animales = sum(r["poblacion_actual"] for r in rows)
 
-    mostrar = rows if filtro_estado == "Todos" else [r for r in rows if r["poblacion_actual"] > 0]
-
     with st.expander(
         f"{zona['icono']} **{zona['key']}** — {ocupados}/{total} ocupados · {int(animales)} animales",
         expanded=True
     ):
-        if not mostrar:
-            st.caption("Todos los corrales vacios.")
-            return
-
         cols = st.columns(4)
-        for i, row in enumerate(mostrar):
+        for i, row in enumerate(rows):
             with cols[i % 4]:
                 _tarjeta(row)
 

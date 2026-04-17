@@ -6,24 +6,13 @@ y routing de paginas segun rol.
 
 import streamlit as st
 import time
-
-try:
-    from database import fetch_one, execute, test_connection
-except Exception as e:
-    st.error(f"Error importando database: {e}")
-    st.stop()
-
-try:
-    from config import DB_CONFIG
-except Exception as e:
-    st.error(f"Error importando config: {e}")
-    st.stop()
+from database import fetch_one, execute, test_connection
 
 st.set_page_config(
     page_title="Corralia v3",
     page_icon="🐖",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
 def _init_session():
@@ -131,6 +120,7 @@ def mostrar_primer_acceso():
 
             _activar_usuario(usuario["id"], nuevo_pin)
             _registrar_acceso(usuario["id"])
+
             st.session_state.pop("activar_usuario", None)
             st.session_state.autenticado    = True
             st.session_state.usuario_id     = usuario["id"]
@@ -166,7 +156,10 @@ def mostrar_sidebar():
             st.session_state.pagina = "mapa"
             st.rerun()
 
-
+        if rol != "ayudante_general":
+            if st.button("🔄 Traspasos", use_container_width=True):
+                st.session_state.pagina = "traspaso"
+                st.rerun()
 
         if rol == "admin":
             if st.button("📊 Reportes", use_container_width=True):
@@ -177,9 +170,6 @@ def mostrar_sidebar():
                 st.rerun()
             if st.button("👥 Usuarios", use_container_width=True):
                 st.session_state.pagina = "usuarios"
-                st.rerun()
-            if st.button("💰 Ventas", use_container_width=True):
-                st.session_state.pagina = "ventas"
                 st.rerun()
 
         st.markdown("---")
@@ -216,18 +206,15 @@ def routear_pagina():
     pagina = st.session_state.pagina
 
     if pagina == "mapa":
+        from streamlit_autorefresh import st_autorefresh
+        st_autorefresh(interval=60000, key="mapa_refresh")
         from modulos.mapa import mostrar_mapa
         mostrar_mapa()
 
     elif pagina == "traspaso":
-        if rol not in ("admin", "encargado_general", "parideras", "crecimiento", "gestacion"):
+        if rol == "ayudante_general":
             st.error("Acceso restringido.")
             return
-        if st.button("← Regresar al mapa"):
-            st.session_state.pagina = "mapa"
-            st.session_state.pop("corral_presel", None)
-            st.session_state.pop("tab_presel", None)
-            st.rerun()
         from modulos.traspaso import mostrar_traspaso
         mostrar_traspaso()
 
@@ -251,16 +238,6 @@ def routear_pagina():
             return
         from modulos.usuarios import mostrar_usuarios
         mostrar_usuarios()
-
-    elif pagina == "ventas":
-        if rol != "admin":
-            st.error("Acceso restringido.")
-            return
-        if st.button("← Regresar al mapa"):
-            st.session_state.pagina = "mapa"
-            st.rerun()
-        from modulos.ventas import mostrar_historial_ventas
-        mostrar_historial_ventas()
 
     elif pagina == "salida":
         from modulos.checador import mostrar_registro_salida
