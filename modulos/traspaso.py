@@ -84,15 +84,12 @@ def _mostrar_wizard_traspaso():
     corrales_disponibles = df_con_stock["corral"].unique().tolist()
     presel = st.session_state.pop("corral_presel", None)
 
-    if presel and presel in corrales_disponibles:
-        origen_nombre = presel
-        st.info(f"📍 Origen: **{origen_nombre}**")
-    else:
-        origen_nombre = st.selectbox(
-            "Corral de origen:",
-            corrales_disponibles,
-            key="origen_sel"
-        )
+    st.session_state.pop("corral_presel", None)
+    origen_nombre = st.selectbox(
+        "Corral de origen:",
+        corrales_disponibles,
+        key="origen_sel"
+    )
     datos_origen = df_con_stock[df_con_stock["corral"] == origen_nombre].iloc[0]
     id_origen    = int(datos_origen["id"])
 
@@ -342,12 +339,8 @@ def mostrar_registro_muerte():
 
     col1, col2 = st.columns(2)
     corrales_m = df_con_stock["corral"].unique().tolist()
-    presel_m = st.session_state.pop("corral_presel", None)
-    if presel_m and presel_m in corrales_m:
-        corral_sel = presel_m
-        col1.info(f"📍 **{corral_sel}**")
-    else:
-        corral_sel = col1.selectbox("Corral:", corrales_m, key="muerte_corral")
+    st.session_state.pop("corral_presel", None)
+    corral_sel = col1.selectbox("Corral:", corrales_m, key="muerte_corral")
 
     datos_corral = df_con_stock[df_con_stock["corral"] == corral_sel].iloc[0]
     id_corral = int(datos_corral["id"])
@@ -464,12 +457,8 @@ def mostrar_cambio_etapa():
 
     col1, col2 = st.columns(2)
     corrales_e = df_con_stock["corral"].unique().tolist()
-    presel_e = st.session_state.pop("corral_presel", None)
-    if presel_e and presel_e in corrales_e:
-        corral_sel = presel_e
-        col1.info(f"📍 **{corral_sel}**")
-    else:
-        corral_sel = col1.selectbox("Corral:", corrales_e, key="etapa_corral")
+    st.session_state.pop("corral_presel", None)
+    corral_sel = col1.selectbox("Corral:", corrales_e, key="etapa_corral")
 
     datos_corral = df_con_stock[df_con_stock["corral"] == corral_sel].iloc[0]
     id_corral = int(datos_corral["id"])
@@ -571,11 +560,8 @@ def mostrar_registro_parto():
     corrales_p = df_parideras["corral"].unique().tolist()
     presel_p = st.session_state.pop("corral_presel", None)
 
-    if presel_p and presel_p in corrales_p:
-        corral_sel = presel_p
-        st.info(f"📍 **{corral_sel}**")
-    else:
-        corral_sel = st.selectbox("Paridera:", corrales_p, key="parto_corral")
+    st.session_state.pop("corral_presel", None)
+    corral_sel = st.selectbox("Paridera:", corrales_p, key="parto_corral")
 
     datos_corral = df_parideras[df_parideras["corral"] == corral_sel].iloc[0]
     id_corral = int(datos_corral["id"])

@@ -222,11 +222,9 @@ def _tarjeta(row):
             b1, b2 = st.columns(2)
             if b1.button("🔄 Traslado", key=f"tras_{row['id']}", use_container_width=True):
                 st.session_state.pagina = "traspaso"
-                st.session_state.corral_presel = row['nombre']
                 st.rerun()
             if b2.button("💀 Muerte", key=f"muer_{row['id']}", use_container_width=True):
                 st.session_state.pagina = "muerte"
-                st.session_state.corral_presel = row['nombre']
                 st.rerun()
 
             # Fila 2 — Etapa/Venta/Parto
