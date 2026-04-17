@@ -59,8 +59,9 @@ def mostrar_registro_venta():
 
     from modulos.lotes import get_inventario_completo, get_lote
 
-    # Guardar corral_presel antes de que cualquier widget lo consuma
+    # Limpiar estados de navegacion para evitar redirects
     corral_origen = st.session_state.pop("corral_presel", None)
+    st.session_state.pop("tab_presel", None)
 
     # ── Paso 1: Cliente ───────────────────────────────────────────────────────
     st.markdown("**1. Cliente**")
@@ -79,12 +80,11 @@ def mostrar_registro_venta():
         st.error("No hay clientes registrados. Pide a Saúl que registre clientes primero.")
         return
 
-    opciones = {"— Selecciona un cliente —": None}
-    for c in todos_clientes:
-        opciones[f"{c['nombre']} ({c['telefono']})"] = c
+    etiquetas = [f"{c['nombre']} ({c['telefono']})" for c in todos_clientes]
+    mapa = {f"{c['nombre']} ({c['telefono']})": c for c in todos_clientes}
 
-    sel = st.selectbox("Cliente:", list(opciones.keys()), key="venta_sel_cliente")
-    cliente = opciones[sel]
+    sel = st.radio("Selecciona el cliente:", etiquetas, key="venta_sel_cliente")
+    cliente = mapa.get(sel)
 
     if not cliente:
         return
