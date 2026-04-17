@@ -125,15 +125,12 @@ def mostrar_registro_venta():
     # ── Paso 3: Precio y peso ─────────────────────────────────────────────────
     st.markdown("**3. Precio**")
 
-    col3, col4, col5 = st.columns(3)
+    col3, col4 = st.columns(2)
     peso_kg    = col3.number_input("Peso total (kg):", min_value=0.1, step=0.5, key="venta_peso")
     precio_kg  = col4.number_input("Precio por kg ($):", min_value=0.0, step=0.5, key="venta_precio")
-    sin_com    = col5.checkbox("Sin comisión", key="venta_sin_com2")
 
-    # Calculos automaticos
-    comision_kg    = 0.0
-    if cliente and not sin_com:
-        comision_kg = COMISIONES.get(cliente["tipo"], 0.0)
+    # Comision automatica segun tipo de cliente
+    comision_kg = COMISIONES.get(cliente["tipo"], 0.0) if cliente else 0.0
 
     precio_rancho  = precio_kg - comision_kg
     total_rancho   = round(precio_rancho * peso_kg, 2)
