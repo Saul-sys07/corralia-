@@ -382,9 +382,10 @@ def _registrar_en_historial(
         """
         INSERT INTO historial_movimientos
             (id_chiquero_origen, id_chiquero_destino, tipo_animal,
-             cantidad, tipo_evento, id_usuario, notas, foto_evidencia)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+             cantidad, tipo_evento, id_usuario, notas, foto_evidencia, fecha)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         """,
         (id_origen, id_destino, tipo_animal, cantidad,
-         tipo_evento, usuario, notas, foto_evidencia),
+         tipo_evento, usuario, notas, foto_evidencia,
+         __import__('datetime').datetime.now(__import__('zoneinfo').ZoneInfo('America/Mexico_City')).replace(tzinfo=None)),
     )

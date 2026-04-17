@@ -235,9 +235,7 @@ def _tarjeta(row):
                     st.session_state.corral_presel = row['nombre']
                     st.rerun()
                 if b4.button("💰 Venta", key=f"vent_{row['id']}", use_container_width=True):
-                    st.session_state.pagina = "traspaso"
-                    st.session_state.tab_presel = "venta"
-                    st.session_state.corral_presel = row['nombre']
+                    st.session_state.pagina = "venta_registro"
                     st.rerun()
                 if b5.button("🍼 Parto", key=f"parto_{row['id']}", use_container_width=True):
                     st.session_state.pagina = "parto"
@@ -260,9 +258,7 @@ def _tarjeta(row):
                     st.session_state.corral_presel = row['nombre']
                     st.rerun()
                 if b4.button("💰 Venta", key=f"vent_{row['id']}", use_container_width=True):
-                    st.session_state.pagina = "traspaso"
-                    st.session_state.tab_presel = "venta"
-                    st.session_state.corral_presel = row['nombre']
+                    st.session_state.pagina = "venta_registro"
                     st.rerun()
             else:
                 b3, = st.columns(1)

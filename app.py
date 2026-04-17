@@ -300,6 +300,16 @@ def routear_pagina():
         from modulos.ventas import mostrar_historial_ventas
         mostrar_historial_ventas()
 
+    elif pagina == "venta_registro":
+        if rol not in ("admin", "encargado_general"):
+            st.error("Acceso restringido.")
+            return
+        if st.button("← Regresar al mapa"):
+            st.session_state.pagina = "mapa"
+            st.rerun()
+        from modulos.ventas import mostrar_registro_venta
+        mostrar_registro_venta()
+
     elif pagina == "clientes":
         if rol != "admin":
             st.error("Acceso restringido.")
