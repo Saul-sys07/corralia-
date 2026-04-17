@@ -477,7 +477,15 @@ def mostrar_cambio_etapa():
     col2.caption(f"Animales en esta etapa: {disponible}")
 
     # Etapas posibles hacia adelante
-    if etapa_actual in TIPOS_ANIMAL:
+    # Desarrollo puede convertirse en Semental o Pie de Cria (sustitutos)
+    SUSTITUTOS = {"Desarrollo", "Engorda"}
+    if etapa_actual in SUSTITUTOS:
+        if etapa_actual in TIPOS_ANIMAL:
+            idx = TIPOS_ANIMAL.index(etapa_actual)
+            etapas_destino = ["Semental", "Pie de Cría"] + TIPOS_ANIMAL[idx + 1:]
+        else:
+            etapas_destino = TIPOS_ANIMAL
+    elif etapa_actual in TIPOS_ANIMAL:
         idx = TIPOS_ANIMAL.index(etapa_actual)
         etapas_destino = TIPOS_ANIMAL[idx + 1:] if idx + 1 < len(TIPOS_ANIMAL) else []
     else:
