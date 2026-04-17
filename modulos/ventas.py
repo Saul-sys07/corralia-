@@ -19,9 +19,10 @@ cloudinary.config(
 )
 
 COMISIONES = {
-    "Nuevo":      2.00,
-    "Retenido":   1.00,
-    "Recuperado": 1.50,
+    "Nuevo":        3.00,
+    "Retenido":     1.50,
+    "Recuperado":   2.00,
+    "Sin comision": 0.00,
 }
 
 

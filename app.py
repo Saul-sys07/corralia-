@@ -181,6 +181,9 @@ def mostrar_sidebar():
             if st.button("💰 Ventas", use_container_width=True):
                 st.session_state.pagina = "ventas"
                 st.rerun()
+            if st.button("👤 Clientes", use_container_width=True):
+                st.session_state.pagina = "clientes"
+                st.rerun()
 
         st.markdown("---")
 
@@ -261,6 +264,13 @@ def routear_pagina():
             st.rerun()
         from modulos.ventas import mostrar_historial_ventas
         mostrar_historial_ventas()
+
+    elif pagina == "clientes":
+        if rol != "admin":
+            st.error("Acceso restringido.")
+            return
+        from modulos.clientes import mostrar_clientes
+        mostrar_clientes()
 
     elif pagina == "salida":
         from modulos.checador import mostrar_registro_salida
