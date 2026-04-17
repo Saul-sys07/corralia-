@@ -18,6 +18,7 @@ def mostrar_configuracion():
     st.caption("Panel exclusivo de administracion - Saul")
 
     mostrar_precio_venta()
+    mostrar_cambio_estado_pie_cria()
 
     st.markdown("---")
     tab1, tab2 = st.tabs(["Registrar Animales", "Corrales"])
@@ -235,3 +236,94 @@ def mostrar_precio_venta():
         )
         st.success(f"Precio actualizado a ${nuevo_precio}/kg")
         st.rerun()
+
+
+def mostrar_cambio_estado_pie_cria():
+    """Cambio manual de estado para pie de cria — solo Admin."""
+    from database import fetch_all, execute, fetch_one
+    from datetime import datetime, timedelta
+    import time
+
+    st.markdown("---")
+    st.subheader("Estado Pie de Cría")
+    st.caption("Registra el estado actual de las cerdas en cada corral")
+
+    ESTADOS = ["Disponible", "Cubierta", "Gestación", "Parida", "Desecho"]
+
+    # Obtener corrales con pie de cria
+    lotes_pc = fetch_all("""
+        SELECT l.id, l.id_chiquero, l.tipo_animal, l.poblacion_actual,
+               l.estado_pie_cria, l.fecha_monta, l.fecha_parto_estimada,
+               c.nombre AS corral
+        FROM lotes l
+        JOIN chiqueros c ON c.id = l.id_chiquero
+        WHERE l.tipo_animal = 'Pie de Cría'
+        AND l.poblacion_actual > 0
+        ORDER BY c.nombre
+    """)
+
+    if not lotes_pc:
+        st.info("No hay Pie de Cría registrado en ningún corral.")
+        return
+
+    for lote in lotes_pc:
+        with st.expander(
+            f"{lote['corral']} — {lote['poblacion_actual']} Pie de Cría — Estado: {lote['estado_pie_cria'] or 'Sin estado'}",
+            expanded=False
+        ):
+            col1, col2 = st.columns(2)
+
+            estado_actual = lote["estado_pie_cria"] or "Disponible"
+            idx_estado = ESTADOS.index(estado_actual) if estado_actual in ESTADOS else 0
+
+            nuevo_estado = col1.selectbox(
+                "Estado:",
+                ESTADOS,
+                index=idx_estado,
+                key=f"est_{lote['id']}"
+            )
+
+            fecha_monta = None
+            fecha_parto = None
+
+            if nuevo_estado in ("Cubierta", "Gestación", "Parida"):
+                fecha_monta_actual = lote["fecha_monta"]
+                fecha_monta = col2.date_input(
+                    "Fecha de monta:",
+                    value=fecha_monta_actual if fecha_monta_actual else datetime.today(),
+                    key=f"monta_{lote['id']}"
+                )
+                # Calcular parto estimado
+                if fecha_monta:
+                    fecha_parto = fecha_monta + timedelta(days=114)
+                    col2.caption(f"Parto estimado: {fecha_parto.strftime('%d/%m/%Y')}")
+
+            if st.button(
+                f"Actualizar {lote['corral']}",
+                key=f"upd_pc_{lote['id']}",
+                type="primary",
+                use_container_width=True
+            ):
+                execute(
+                    """UPDATE lotes 
+                       SET estado_pie_cria = %s,
+                           fecha_monta = %s,
+                           fecha_parto_estimada = %s
+                       WHERE id = %s""",
+                    (nuevo_estado, fecha_monta, fecha_parto, lote["id"])
+                )
+
+                # Registrar en historial
+                execute(
+                    """INSERT INTO historial_movimientos
+                       (id_chiquero_destino, tipo_animal, cantidad, tipo_evento, id_usuario, notas)
+                       VALUES (%s, %s, %s, 'CAMBIO_ESTADO', %s, %s)""",
+                    (lote["id_chiquero"], "Pie de Cría", lote["poblacion_actual"],
+                     st.session_state.usuario_nombre,
+                     f"Cambio manual: {estado_actual} → {nuevo_estado}" +
+                     (f" | Monta: {fecha_monta.strftime('%d/%m/%Y')}" if fecha_monta else ""))
+                )
+
+                st.success(f"Estado actualizado: {nuevo_estado}")
+                time.sleep(1)
+                st.rerun()
