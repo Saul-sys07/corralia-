@@ -203,7 +203,7 @@ def _tarjeta(row):
             tipos_en_corral = [t.strip() for t in tipo_animal_raw.split("/")
                                if t.strip() and t.strip() != "VACIO"]
             if len(tipos_en_corral) > 1:
-                st.selectbox("Tipo:", tipos_en_corral, key=f"tipo_acc_{row['id']}")
+                st.radio("Tipo:", tipos_en_corral, key=f"tipo_acc_{row['id']}", horizontal=True)
 
             rol_actual = st.session_state.get("usuario_rol", "admin")
             zona_corral = str(row.get("zona", ""))
