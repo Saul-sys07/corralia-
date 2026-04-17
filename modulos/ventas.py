@@ -125,39 +125,58 @@ def mostrar_registro_venta():
     # ── Paso 3: Precio y peso ─────────────────────────────────────────────────
     st.markdown("**3. Precio**")
 
-    # Leer precio del sistema — lo fija Saul en Configuracion
     from database import fetch_one as _fetch_one
     row_precio = _fetch_one("SELECT valor FROM configuracion WHERE clave = 'precio_kg'")
     precio_sistema = float(row_precio["valor"]) if row_precio else 48.00
-
     rol_actual = st.session_state.get("usuario_rol", "admin")
-
-    col3, col4 = st.columns(2)
-    peso_kg = col3.number_input("Peso total (kg):", min_value=0.1, step=0.5, key="venta_peso")
-
-    if rol_actual == "admin":
-        # Saul puede modificar el precio
-        precio_kg = col4.number_input("Precio por kg ($):", min_value=0.0,
-                                       value=precio_sistema, step=0.50, key="venta_precio")
-    else:
-        # Beyin ve el precio fijo
-        precio_kg = precio_sistema
-        col4.info(f"Precio del día: **${precio_kg}/kg**")
 
     # Comision automatica segun tipo de cliente
     comision_kg = COMISIONES.get(cliente["tipo"], 0.0) if cliente else 0.0
 
-    precio_rancho  = precio_kg - comision_kg
-    total_rancho   = round(precio_rancho * peso_kg, 2)
-    total_comision = round(comision_kg * peso_kg, 2)
-    total_venta    = round(precio_kg * peso_kg, 2)
+    es_destete = tipo_animal == "Destete"
 
-    if precio_kg > 0:
-        st.info(
-            f"Total venta: **${total_venta:,.2f}** | "
-            f"Rancho: **${total_rancho:,.2f}** | "
-            f"Comisión ({comision_kg}/kg): **${total_comision:,.2f}**"
-        )
+    if es_destete:
+        # Destete se vende por cabeza, no por kilo
+        st.info("Destete — venta por cabeza")
+        col3, col4 = st.columns(2)
+        precio_cabeza = col3.number_input("Precio por cabeza ($):", min_value=0.0, step=50.0, key="venta_precio_cab")
+        peso_kg = 0.0
+        precio_kg = 0.0
+        comision_unit = comision_kg  # comision en pesos por cabeza vendida
+        total_venta    = round(precio_cabeza * cantidad, 2)
+        total_comision = round(comision_unit * cantidad, 2)
+        total_rancho   = round((precio_cabeza - comision_unit) * cantidad, 2)
+        if precio_cabeza > 0:
+            col4.metric("Total venta", f"${total_venta:,.2f}")
+            st.info(
+                f"Total venta: **${total_venta:,.2f}** | "
+                f"Rancho: **${total_rancho:,.2f}** | "
+                f"Comisión: **${total_comision:,.2f}**"
+            )
+    else:
+        # Engorda y Desecho por kilo
+        col3, col4 = st.columns(2)
+        peso_kg = col3.number_input("Peso total (kg):", min_value=0.1, step=0.5, key="venta_peso")
+
+        if rol_actual == "admin":
+            precio_kg = col4.number_input("Precio por kg ($):", min_value=0.0,
+                                           value=precio_sistema, step=0.50, key="venta_precio")
+        else:
+            precio_kg = precio_sistema
+            col4.info(f"Precio del día: **${precio_kg}/kg**")
+
+        precio_cabeza  = 0.0
+        precio_rancho  = precio_kg - comision_kg
+        total_rancho   = round(precio_rancho * peso_kg, 2)
+        total_comision = round(comision_kg * peso_kg, 2)
+        total_venta    = round(precio_kg * peso_kg, 2)
+
+        if precio_kg > 0:
+            st.info(
+                f"Total venta: **${total_venta:,.2f}** | "
+                f"Rancho: **${total_rancho:,.2f}** | "
+                f"Comisión ({comision_kg}/kg): **${total_comision:,.2f}**"
+            )
 
     st.markdown("---")
 
@@ -198,8 +217,8 @@ def mostrar_registro_venta():
     # ── Confirmar venta ───────────────────────────────────────────────────────
     puede_confirmar = (
         cliente is not None and
-        peso_kg > 0 and
-        precio_kg > 0 and
+        (peso_kg > 0 or precio_cabeza > 0) and
+        (precio_kg > 0 or precio_cabeza > 0) and
         st.session_state.foto_bascula_url is not None
     )
 
@@ -223,7 +242,8 @@ def mostrar_registro_venta():
                 comision_kg, total_rancho, total_comision, foto_bascula)
                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
             (cliente["id"], st.session_state.usuario_id, tipo_animal, cantidad,
-             peso_kg, precio_kg, comision_kg, total_rancho, total_comision,
+             peso_kg, precio_kg if not es_destete else precio_cabeza,
+             comision_kg, total_rancho, total_comision,
              st.session_state.foto_bascula_url)
         )
 
