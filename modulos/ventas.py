@@ -59,6 +59,9 @@ def mostrar_registro_venta():
 
     from modulos.lotes import get_inventario_completo, get_lote
 
+    # Guardar corral_presel antes de que cualquier widget lo consuma
+    corral_origen = st.session_state.pop("corral_presel", None)
+
     # ── Paso 1: Cliente ───────────────────────────────────────────────────────
     st.markdown("**1. Cliente**")
 
@@ -93,7 +96,10 @@ def mostrar_registro_venta():
             st.success(f"Cliente: **{cliente['nombre']}** — {cliente['tipo']} — Comisión: ${COMISIONES.get(cliente['tipo'], 0)}/kg")
 
     if not cliente:
-        st.info("Escribe al menos 3 caracteres para buscar.")
+        if busqueda and len(busqueda) >= 3:
+            st.error("Cliente no encontrado. Pide a Saúl que lo registre en Clientes.")
+        else:
+            st.info("Escribe el nombre o teléfono del cliente para continuar.")
         return
 
     st.markdown("---")
@@ -105,11 +111,10 @@ def mostrar_registro_venta():
     df_todos = df_inv[df_inv["poblacion_actual"] > 0]
 
     col1, col2 = st.columns(2)
-    presel_v = st.session_state.pop("corral_presel", None) if "corral_presel" in st.session_state else None
     corrales_v = df_todos["corral"].unique().tolist()
 
-    if presel_v and presel_v in corrales_v:
-        corral_sel = presel_v
+    if corral_origen and corral_origen in corrales_v:
+        corral_sel = corral_origen
         col1.info(f"📍 **{corral_sel}**")
     else:
         corral_sel = col1.selectbox("Corral:", corrales_v, key="venta_corral")
