@@ -222,7 +222,9 @@ def mostrar_registro_venta():
         )
 
         st.session_state.foto_bascula_url = None
+        st.session_state.pop("accion_activa", None)
         st.success(f"Venta registrada. Total: ${total_venta:,.2f} | Comisión: ${total_comision:,.2f}")
+        st.session_state.pagina = "mapa"
         time.sleep(2)
         st.rerun()
 

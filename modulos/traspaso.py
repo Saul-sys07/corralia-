@@ -13,32 +13,28 @@ from config import TIPOS_ANIMAL
 
 
 def mostrar_traspaso():
-    # Leer y limpiar tab preseleccionado desde tarjeta del mapa
-    tab_presel = st.session_state.pop("tab_presel", None)
+    # Si viene desde tarjeta, guardar accion en estado persistente
+    if "tab_presel" in st.session_state:
+        st.session_state["accion_activa"] = st.session_state.pop("tab_presel")
+
+    accion = st.session_state.get("accion_activa", None)
 
     titulos = {"muerte": "Registrar Muerte", "etapa": "Cambiar Etapa", "venta": "Registrar Venta"}
-    st.title(titulos.get(tab_presel, "Traspasos"))
+    st.title(titulos.get(accion, "Traspasos"))
     st.write(f"Operador: **{st.session_state.usuario_nombre}** — {pd.Timestamp.now().strftime('%d/%m/%Y')}")
 
-
-
-
-    # Si viene desde tarjeta, mostrar solo esa accion
-    if tab_presel == "muerte":
-        st.session_state.pop("tab_presel", None)
+    if accion == "muerte":
         mostrar_registro_muerte()
         return
-    elif tab_presel == "etapa":
-        st.session_state.pop("tab_presel", None)
+    elif accion == "etapa":
         mostrar_cambio_etapa()
         return
-    elif tab_presel == "venta":
-        st.session_state.pop("tab_presel", None)
+    elif accion == "venta":
         from modulos.ventas import mostrar_registro_venta
         mostrar_registro_venta()
         return
 
-    # Sin preseleccion — mostrar wizard de traspasos directo
+    # Sin accion — wizard de traspasos directo
     _mostrar_alertas_celo()
     _mostrar_wizard_traspaso()
 

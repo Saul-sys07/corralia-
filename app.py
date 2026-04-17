@@ -230,6 +230,7 @@ def routear_pagina():
             st.session_state.pagina = "mapa"
             st.session_state.pop("corral_presel", None)
             st.session_state.pop("tab_presel", None)
+            st.session_state.pop("accion_activa", None)
             st.rerun()
         from modulos.traspaso import mostrar_traspaso
         mostrar_traspaso()
