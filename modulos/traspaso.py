@@ -162,6 +162,13 @@ def _mostrar_wizard_traspaso():
     st.markdown("### 4. ¿A dónde van?")
     corrales_validos = get_chiqueros_disponibles_para(tipo_destino)
     corrales_validos = [c for c in corrales_validos if c["id"] != id_origen]
+    
+    # Debug temporal
+    from modulos.chiqueros import get_chiqueros
+    todos_ch = get_chiqueros()
+    crecimiento_ch = [c for c in todos_ch if c.get("zona") == "Crecimiento"]
+    st.caption(f"Debug — Chiqueros Crecimiento: {[c['nombre'] for c in crecimiento_ch]}")
+    st.caption(f"Debug — Validos para {tipo_destino}: {[c['nombre'] for c in corrales_validos]}")
 
     # Candados por zona — solo para encargados de zona, no para admin ni encargado_general
     rol = st.session_state.get("usuario_rol", "admin")
