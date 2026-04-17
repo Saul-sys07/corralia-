@@ -160,29 +160,26 @@ def _mostrar_wizard_traspaso():
 
     # ── PASO 4: Destino ───────────────────────────────────────────────────────
     st.markdown("### 4. ¿A dónde van?")
+    # Enriquecer corrales_validos con zona desde BD
+    from database import fetch_all as _fa2
+    zonas_map = {r["id"]: r["zona"] for r in _fa2("SELECT id, zona FROM chiqueros")}
     corrales_validos = get_chiqueros_disponibles_para(tipo_destino)
     corrales_validos = [c for c in corrales_validos if c["id"] != id_origen]
-    
-    # Debug temporal
-    from modulos.chiqueros import get_chiqueros
-    todos_ch = get_chiqueros()
-    crecimiento_ch = [c for c in todos_ch if c.get("zona") == "Crecimiento"]
-    st.caption(f"Debug — Chiqueros Crecimiento: {[c['nombre'] for c in crecimiento_ch]}")
-    st.caption(f"Debug — Validos para {tipo_destino}: {[c['nombre'] for c in corrales_validos]}")
+    # Asignar zona a cada corral
+    for c in corrales_validos:
+        if not c.get("zona"):
+            c["zona"] = zonas_map.get(c["id"], "")
 
-    # Candados por zona — solo para encargados de zona, no para admin ni encargado_general
+    # Candados por zona — solo para encargados de zona
     rol = st.session_state.get("usuario_rol", "admin")
     if rol == "gestacion":
-        # Gestacion solo puede trasladar a Parideras
         corrales_validos = [c for c in corrales_validos if c.get("zona") == "Parideras"]
     elif rol == "parideras":
-        # Parideras: Pie de Cria va a Gestacion, Crias van a Crecimiento
         if tipo_destino == "Pie de Cría":
             corrales_validos = [c for c in corrales_validos if c.get("zona") == "Gestacion"]
         elif tipo_destino == "Crías":
             corrales_validos = [c for c in corrales_validos if c.get("zona") == "Crecimiento"]
     elif rol == "crecimiento":
-        # Crecimiento: entre corrales de Crecimiento, o a Gestacion si es sustituto
         if tipo_destino not in ("Pie de Cría", "Semental"):
             corrales_validos = [c for c in corrales_validos if c.get("zona") == "Crecimiento"]
         else:
