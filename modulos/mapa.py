@@ -206,11 +206,17 @@ def _tarjeta(row):
                 st.selectbox("Tipo:", tipos_en_corral, key=f"tipo_acc_{row['id']}")
 
             rol_actual = st.session_state.get("usuario_rol", "admin")
+            zona_corral = str(row.get("zona", ""))
 
             # Venta solo para Destete, Engorda y Desecho
             tipos_vendibles = {"Destete", "Engorda", "Desecho"}
             tiene_vendibles = any(t.strip() in tipos_vendibles for t in tipo_animal_raw.split("/"))
             mostrar_venta = rol_actual in ("admin", "encargado_general") and tiene_vendibles
+
+            # Parto solo en Parideras y solo para quienes tienen acceso
+            tiene_pie_cria = "Pie de Cr" in tipo_animal_raw
+            mostrar_parto = (zona_corral == "Parideras" and tiene_pie_cria and
+                           rol_actual in ("admin", "encargado_general", "parideras"))
 
             # Fila 1 — Traslado y Muerte
             b1, b2 = st.columns(2)
@@ -224,8 +230,37 @@ def _tarjeta(row):
                 st.session_state.corral_presel = row['nombre']
                 st.rerun()
 
-            # Fila 2 — Etapa y Venta
-            if mostrar_venta:
+            # Fila 2 — Etapa/Venta/Parto
+            if mostrar_parto and mostrar_venta:
+                b3, b4, b5 = st.columns(3)
+                if b3.button("📦 Etapa", key=f"etap_{row['id']}", use_container_width=True):
+                    st.session_state.pagina = "traspaso"
+                    st.session_state.tab_presel = "etapa"
+                    st.session_state.corral_presel = row['nombre']
+                    st.rerun()
+                if b4.button("💰 Venta", key=f"vent_{row['id']}", use_container_width=True):
+                    st.session_state.pagina = "traspaso"
+                    st.session_state.tab_presel = "venta"
+                    st.session_state.corral_presel = row['nombre']
+                    st.rerun()
+                if b5.button("🍼 Parto", key=f"parto_{row['id']}", use_container_width=True):
+                    st.session_state.pagina = "traspaso"
+                    st.session_state.tab_presel = "parto"
+                    st.session_state.corral_presel = row['nombre']
+                    st.rerun()
+            elif mostrar_parto:
+                b3, b4 = st.columns(2)
+                if b3.button("📦 Etapa", key=f"etap_{row['id']}", use_container_width=True):
+                    st.session_state.pagina = "traspaso"
+                    st.session_state.tab_presel = "etapa"
+                    st.session_state.corral_presel = row['nombre']
+                    st.rerun()
+                if b4.button("🍼 Parto", key=f"parto_{row['id']}", use_container_width=True):
+                    st.session_state.pagina = "traspaso"
+                    st.session_state.tab_presel = "parto"
+                    st.session_state.corral_presel = row['nombre']
+                    st.rerun()
+            elif mostrar_venta:
                 b3, b4 = st.columns(2)
                 if b3.button("📦 Etapa", key=f"etap_{row['id']}", use_container_width=True):
                     st.session_state.pagina = "traspaso"

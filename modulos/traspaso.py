@@ -19,7 +19,7 @@ def mostrar_traspaso():
 
     accion = st.session_state.get("accion_activa", None)
 
-    titulos = {"muerte": "Registrar Muerte", "etapa": "Cambiar Etapa", "venta": "Registrar Venta"}
+    titulos = {"muerte": "Registrar Muerte", "etapa": "Cambiar Etapa", "venta": "Registrar Venta", "parto": "Registrar Parto"}
     st.title(titulos.get(accion, "Traspasos"))
     st.write(f"Operador: **{st.session_state.usuario_nombre}** — {pd.Timestamp.now().strftime('%d/%m/%Y')}")
 
@@ -32,6 +32,9 @@ def mostrar_traspaso():
     elif accion == "venta":
         from modulos.ventas import mostrar_registro_venta
         mostrar_registro_venta()
+        return
+    elif accion == "parto":
+        mostrar_registro_parto()
         return
 
     # Sin accion — wizard de traspasos directo
@@ -563,5 +566,93 @@ def mostrar_cambio_etapa():
 
         st.success(f"{cantidad} animales cambiados de {etapa_actual} a {nueva_etapa} en {corral_sel}.")
         time.sleep(1.5)
+        st.session_state.pagina = "mapa"
+        st.rerun()
+
+
+def mostrar_registro_parto():
+    """Registra un parto: crias vivas al inventario, no logradas como muerte."""
+    st.markdown("---")
+    st.markdown("### 🍼 Registrar Parto")
+
+    from modulos.lotes import get_inventario_completo, get_lote
+    from database import execute
+    import time
+
+    df_inv = pd.DataFrame(get_inventario_completo())
+    df_parideras = df_inv[
+        (df_inv["poblacion_actual"] > 0) &
+        (df_inv["tipo_animal"].str.contains("Pie de Cr", na=False))
+    ]
+
+    if df_parideras.empty:
+        st.info("No hay Pie de Cría registrado en parideras.")
+        return
+
+    corrales_p = df_parideras["corral"].unique().tolist()
+    presel_p = st.session_state.pop("corral_presel", None)
+
+    if presel_p and presel_p in corrales_p:
+        corral_sel = presel_p
+        st.info(f"📍 **{corral_sel}**")
+    else:
+        corral_sel = st.selectbox("Paridera:", corrales_p, key="parto_corral")
+
+    datos_corral = df_parideras[df_parideras["corral"] == corral_sel].iloc[0]
+    id_corral = int(datos_corral["id"])
+
+    st.markdown("---")
+    col1, col2 = st.columns(2)
+    crias_vivas = col1.number_input("Crías nacidas vivas:", min_value=0, step=1, key="parto_vivas")
+    no_logradas = col2.number_input("No logradas:", min_value=0, step=1, key="parto_muertas")
+
+    total_nacidos = crias_vivas + no_logradas
+    if total_nacidos > 0:
+        st.info(f"Total nacidos: {total_nacidos} | Vivos: {crias_vivas} | No logrados: {no_logradas}")
+
+    if st.button("Registrar parto", type="primary", use_container_width=True, key="btn_parto"):
+        if total_nacidos == 0:
+            st.error("Registra al menos una cría.")
+            return
+
+        # Agregar crias vivas al inventario del corral
+        if crias_vivas > 0:
+            execute(
+                """INSERT INTO lotes (id_chiquero, tipo_animal, poblacion_actual)
+                   VALUES (%s, 'Crías', %s)
+                   ON DUPLICATE KEY UPDATE
+                   poblacion_actual = poblacion_actual + VALUES(poblacion_actual)""",
+                (id_corral, crias_vivas)
+            )
+            execute(
+                """INSERT INTO historial_movimientos
+                   (id_chiquero_destino, tipo_animal, cantidad, tipo_evento, id_usuario, notas)
+                   VALUES (%s, 'Crías', %s, 'PARTO', %s, %s)""",
+                (id_corral, crias_vivas, st.session_state.usuario_nombre,
+                 f"Parto en {corral_sel}: {crias_vivas} crías vivas")
+            )
+
+        # Registrar no logradas como muerte
+        if no_logradas > 0:
+            execute(
+                """INSERT INTO historial_movimientos
+                   (id_chiquero_destino, tipo_animal, cantidad, tipo_evento, id_usuario, notas)
+                   VALUES (%s, 'Crías', %s, 'MUERTE', %s, %s)""",
+                (id_corral, no_logradas, st.session_state.usuario_nombre,
+                 f"Parto en {corral_sel}: {no_logradas} no logradas")
+            )
+
+        # Cambiar estado de la pie de cria a Parida
+        execute(
+            """UPDATE lotes SET estado_pie_cria = 'Parida'
+               WHERE id_chiquero = %s AND tipo_animal = 'Pie de Cría'""",
+            (id_corral,)
+        )
+
+        st.cache_data.clear()
+        st.success(f"Parto registrado en {corral_sel}: {crias_vivas} crías vivas" +
+                   (f", {no_logradas} no logradas" if no_logradas > 0 else ""))
+        time.sleep(1.5)
+        st.session_state.pop("accion_activa", None)
         st.session_state.pagina = "mapa"
         st.rerun()
