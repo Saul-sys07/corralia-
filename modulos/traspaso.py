@@ -127,8 +127,14 @@ def _mostrar_wizard_traspaso():
 
     tipo_destino = tipo_a_mover
     if cambiar_etapa:
-        idx_actual = TIPOS_ANIMAL.index(tipo_a_mover) if tipo_a_mover in TIPOS_ANIMAL else 0
-        opciones_avance = TIPOS_ANIMAL[idx_actual:]
+        # Desarrollo y Engorda pueden convertirse en sustitutos
+        SUSTITUTOS = {"Desarrollo", "Engorda"}
+        if tipo_a_mover in SUSTITUTOS:
+            idx_actual = TIPOS_ANIMAL.index(tipo_a_mover) if tipo_a_mover in TIPOS_ANIMAL else 0
+            opciones_avance = ["Semental", "Pie de Cría"] + TIPOS_ANIMAL[idx_actual:]
+        else:
+            idx_actual = TIPOS_ANIMAL.index(tipo_a_mover) if tipo_a_mover in TIPOS_ANIMAL else 0
+            opciones_avance = TIPOS_ANIMAL[idx_actual:]
         tipo_destino = st.selectbox("Nueva etapa en destino:", opciones_avance, key="etapa_dest")
 
     # ── PASO 4: Destino ───────────────────────────────────────────────────────
