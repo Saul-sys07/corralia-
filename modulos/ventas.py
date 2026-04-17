@@ -65,42 +65,31 @@ def mostrar_registro_venta():
     # ── Paso 1: Cliente ───────────────────────────────────────────────────────
     st.markdown("**1. Cliente**")
 
-    busqueda = st.text_input("Buscar cliente por nombre o teléfono:", 
-                              placeholder="Nombre o 10 dígitos", key="venta_busqueda")
+    todos_clientes = fetch_all(
+        """SELECT c.*, u.nombre AS vendedor 
+           FROM clientes c 
+           LEFT JOIN usuarios u ON u.id = c.usuario_id
+           WHERE c.activo = 1
+           ORDER BY c.nombre""",
+    )
 
     cliente = None
 
-    if busqueda and len(busqueda) >= 3:
-        # Buscar por telefono o nombre
-        resultados = fetch_all(
-            """SELECT c.*, u.nombre AS vendedor 
-               FROM clientes c 
-               LEFT JOIN usuarios u ON u.id = c.usuario_id
-               WHERE (c.telefono = %s OR c.nombre LIKE %s)
-               AND c.activo = 1
-               LIMIT 5""",
-            (busqueda, f"%{busqueda}%")
-        )
+    if not todos_clientes:
+        st.error("No hay clientes registrados. Pide a Saúl que registre clientes primero.")
+        return
 
-        if not resultados:
-            st.error("Cliente no encontrado. Pide a Saúl que lo registre en el módulo de Clientes.")
-            return
-        elif len(resultados) == 1:
-            cliente = resultados[0]
-            st.success(f"Cliente: **{cliente['nombre']}** — {cliente['tipo']} — Vendedor: {cliente['vendedor']} — Comisión: ${COMISIONES.get(cliente['tipo'], 0)}/kg")
-        else:
-            # Multiples resultados — seleccionar
-            opciones = {f"{r['nombre']} ({r['telefono']})": r for r in resultados}
-            sel = st.selectbox("Varios resultados, selecciona:", list(opciones.keys()), key="venta_sel_cliente")
-            cliente = opciones[sel]
-            st.success(f"Cliente: **{cliente['nombre']}** — {cliente['tipo']} — Comisión: ${COMISIONES.get(cliente['tipo'], 0)}/kg")
+    opciones = {"— Selecciona un cliente —": None}
+    for c in todos_clientes:
+        opciones[f"{c['nombre']} ({c['telefono']})"] = c
+
+    sel = st.selectbox("Cliente:", list(opciones.keys()), key="venta_sel_cliente")
+    cliente = opciones[sel]
 
     if not cliente:
-        if busqueda and len(busqueda) >= 3:
-            st.error("Cliente no encontrado. Pide a Saúl que lo registre en Clientes.")
-        else:
-            st.info("Escribe el nombre o teléfono del cliente para continuar.")
         return
+
+    st.success(f"**{cliente['nombre']}** — {cliente['tipo']} — Vendedor: {cliente['vendedor'] or 'Sin vendedor'} — Comisión: ${COMISIONES.get(cliente['tipo'], 0)}/kg")
 
     st.markdown("---")
 

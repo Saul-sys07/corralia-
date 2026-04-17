@@ -204,4 +204,8 @@ def _registrar_cliente():
             (nombre, telefono, tipo, nombres_u[vendedor])
         )
         st.success(f"Cliente '{nombre}' registrado como {tipo} — Comisión: ${COMISIONES.get(tipo, 0)}/kg")
+        # Limpiar formulario
+        for key in ["cli_nombre", "cli_tel"]:
+            if key in st.session_state:
+                del st.session_state[key]
         st.rerun()
