@@ -344,6 +344,15 @@ def mostrar_registro_muerte():
         return
 
     col1, col2 = st.columns(2)
+    # Filtrar por zona segun rol
+    rol_m = st.session_state.get("usuario_rol", "admin")
+    zona_map_m = {"gestacion": "Gestacion", "parideras": "Parideras", "crecimiento": "Crecimiento"}
+    zona_m = zona_map_m.get(rol_m)
+    if zona_m:
+        from database import fetch_all as _fa_m
+        ids_zona_m = {r["id"] for r in _fa_m("SELECT id FROM chiqueros WHERE zona = %s", (zona_m,))}
+        df_con_stock = df_con_stock[df_con_stock["id"].isin(ids_zona_m)]
+
     corrales_m = df_con_stock["corral"].unique().tolist()
     st.session_state.pop("corral_presel", None)
     corral_sel = st.radio("Corral:", corrales_m, key="muerte_corral", horizontal=True)
@@ -434,6 +443,15 @@ def mostrar_cambio_etapa():
         return
 
     col1, col2 = st.columns(2)
+    # Filtrar por zona segun rol
+    rol_et = st.session_state.get("usuario_rol", "admin")
+    zona_map = {"gestacion": "Gestacion", "parideras": "Parideras", "crecimiento": "Crecimiento"}
+    zona_et = zona_map.get(rol_et)
+    if zona_et:
+        from database import fetch_all as _fa_et
+        ids_zona_et = {r["id"] for r in _fa_et("SELECT id FROM chiqueros WHERE zona = %s", (zona_et,))}
+        df_con_stock = df_con_stock[df_con_stock["id"].isin(ids_zona_et)]
+
     corrales_e = df_con_stock["corral"].unique().tolist()
     st.session_state.pop("corral_presel", None)
     corral_sel = st.radio("Corral:", corrales_e, key="etapa_corral", horizontal=True)
