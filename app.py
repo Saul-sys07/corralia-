@@ -184,6 +184,9 @@ def mostrar_sidebar():
             if st.button("👤 Clientes", use_container_width=True):
                 st.session_state.pagina = "clientes"
                 st.rerun()
+            if st.button("🏚️ Almacén", use_container_width=True):
+                st.session_state.pagina = "almacen"
+                st.rerun()
 
         st.markdown("---")
 
@@ -316,6 +319,10 @@ def routear_pagina():
             return
         from modulos.clientes import mostrar_clientes
         mostrar_clientes()
+
+    elif pagina == "almacen":
+        from modulos.almacen import mostrar_almacen
+        mostrar_almacen()
 
     elif pagina == "salida":
         from modulos.checador import mostrar_registro_salida
