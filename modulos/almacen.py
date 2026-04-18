@@ -85,21 +85,17 @@ def mostrar_almacen():
 
 
 def _registrar_compra():
-    """Beyin registra lo que compró — entra al inventario."""
+    """Carrito de compra — agrega productos uno por uno y confirma al final con descuento."""
     st.subheader("Registrar compra")
-    st.caption("Lo que llegó hoy de Forrajes La Palma o donde sea")
+    st.caption("Agrega los productos del ticket uno por uno")
 
-    categoria = st.radio("Categoría:", ["Ingredientes revoltura", "Pellet", "Otro"],
-                         horizontal=True, key="comp_cat")
+    # Inicializar carrito
+    if "carrito_compra" not in st.session_state:
+        st.session_state.carrito_compra = []
 
-    if categoria == "Ingredientes revoltura":
-        productos = INGREDIENTES_REVOLTURA
-    elif categoria == "Pellet":
-        productos = PRODUCTOS_PELLET
-    else:
-        productos = PRODUCTOS_OTRO
-
-    producto = st.radio("Producto:", productos, horizontal=True, key="comp_prod")
+    # ── Agregar producto al carrito ───────────────────────────────────────────
+    todos_productos = INGREDIENTES_REVOLTURA + PRODUCTOS_PELLET + PRODUCTOS_OTRO
+    producto = st.radio("Producto:", todos_productos, horizontal=True, key="comp_prod")
     unidad = UNIDADES.get(producto, "pieza")
     kg_bulto = KG_POR_BULTO.get(producto)
 
@@ -107,21 +103,71 @@ def _registrar_compra():
     cantidad = col1.number_input(f"Cantidad ({unidad}):", min_value=0.1, step=1.0, key="comp_cant")
     if kg_bulto and unidad == "bulto":
         col1.caption(f"= {cantidad * kg_bulto:.0f} kg")
+    costo = col2.number_input("Costo ($):", min_value=0.0, step=10.0, key="comp_costo")
 
-    costo = col2.number_input("Costo total ($):", min_value=0.0, step=10.0, key="comp_costo")
-
-    if st.button("Registrar compra", type="primary", use_container_width=True, key="btn_compra"):
-        execute(
-            """INSERT INTO almacen
-               (tipo, categoria, producto, cantidad, unidad, costo, notas, usuario_id, fecha)
-               VALUES ('entrada', %s, %s, %s, %s, %s, %s, %s, %s)""",
-            (categoria, producto, cantidad, unidad, costo,
-             f"Compra: {cantidad} {unidad} de {producto}",
-             st.session_state.usuario_nombre, hora_mexico())
-        )
-        st.success(f"Registrado: {cantidad} {unidad} de {producto} — ${costo:,.2f}")
-        time.sleep(1)
+    if st.button("➕ Agregar al carrito", use_container_width=True, key="btn_agregar"):
+        st.session_state.carrito_compra.append({
+            "producto": producto,
+            "cantidad": cantidad,
+            "unidad": unidad,
+            "costo": costo,
+        })
         st.rerun()
+
+    # ── Carrito actual ────────────────────────────────────────────────────────
+    if st.session_state.carrito_compra:
+        st.markdown("---")
+        st.markdown("**Carrito:**")
+
+        subtotal = 0
+        for i, item in enumerate(st.session_state.carrito_compra):
+            col_item, col_del = st.columns([5, 1])
+            kg = KG_POR_BULTO.get(item["producto"])
+            kg_str = f" = {item['cantidad'] * kg:.0f}kg" if kg and item["unidad"] == "bulto" else ""
+            col_item.markdown(
+                f"**{item['producto']}** — {item['cantidad']:.0f} {item['unidad']}{kg_str} — ${item['costo']:,.2f}"
+            )
+            if col_del.button("🗑️", key=f"del_{i}", help="Quitar"):
+                st.session_state.carrito_compra.pop(i)
+                st.rerun()
+            subtotal += item["costo"]
+
+        st.markdown("---")
+
+        # Descuento del ticket
+        col_sub, col_desc = st.columns(2)
+        col_sub.metric("Subtotal", f"${subtotal:,.2f}")
+        descuento = col_desc.number_input("Descuento ($):", min_value=0.0,
+                                           step=10.0, key="comp_descuento")
+        total_final = subtotal - descuento
+        st.metric("Total a pagar", f"${total_final:,.2f}")
+
+        col_conf, col_canc = st.columns(2)
+        if col_conf.button("✅ Confirmar compra", type="primary",
+                           use_container_width=True, key="btn_confirmar_compra"):
+            usuario = st.session_state.usuario_nombre
+            fecha = hora_mexico()
+            for item in st.session_state.carrito_compra:
+                categoria = ("Ingredientes revoltura" if item["producto"] in INGREDIENTES_REVOLTURA
+                             else "Pellet" if item["producto"] in PRODUCTOS_PELLET else "Otro")
+                execute(
+                    """INSERT INTO almacen
+                       (tipo, categoria, producto, cantidad, unidad, costo, notas, usuario_id, fecha)
+                       VALUES ('entrada', %s, %s, %s, %s, %s, %s, %s, %s)""",
+                    (categoria, item["producto"], item["cantidad"], item["unidad"],
+                     item["costo"],
+                     f"Compra ticket — descuento total: ${descuento:,.2f}",
+                     usuario, fecha)
+                )
+            n_items = len(st.session_state.carrito_compra)
+            st.session_state.carrito_compra = []
+            st.success(f"Compra registrada — {n_items} productos — Total: ${total_final:,.2f}")
+            time.sleep(1.5)
+            st.rerun()
+
+        if col_canc.button("🗑️ Vaciar carrito", use_container_width=True, key="btn_vaciar"):
+            st.session_state.carrito_compra = []
+            st.rerun()
 
 
 def _hacer_revoltura():
