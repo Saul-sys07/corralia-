@@ -12,6 +12,15 @@ from database import fetch_all, execute
 def hora_mexico():
     return datetime.now(ZoneInfo("America/Mexico_City")).replace(tzinfo=None)
 
+# Formula de la revoltura semanal
+FORMULA_REVOLTURA = {
+    "Maíz molido":        {"cantidad": 6, "unidad": "bulto"},
+    "Salvado":            {"cantidad": 6, "unidad": "bulto"},
+    "Soya":               {"cantidad": 1, "unidad": "bulto"},
+    "Sal/Omega/Minerales":{"cantidad": 2, "unidad": "kg"},
+    # Melaza se agrega manual porque varía
+}
+
 PRODUCTOS = {
     "pellet": [
         "Pellet Destete/Crecimiento",
@@ -82,6 +91,18 @@ def _registrar_movimiento():
                     horizontal=True, key="alm_tipo")
     es_entrada = tipo == "Compra (entrada)"
 
+    if not es_entrada:
+        # Uso semanal — mostrar opcion de revoltura completa
+        st.markdown("---")
+        st.markdown("**¿Qué se usó?**")
+        uso_tipo = st.radio("", ["Revoltura semanal completa", "Producto individual"],
+                            horizontal=True, key="alm_uso_tipo")
+
+        if uso_tipo == "Revoltura semanal completa":
+            _registrar_uso_revoltura()
+            return
+        # Si es producto individual cae al flujo normal abajo
+
     categoria = st.radio("Categoría:", ["pellet", "revoltura", "otro"],
                          horizontal=True, key="alm_cat",
                          format_func=lambda x: x.capitalize())
@@ -122,6 +143,52 @@ def _registrar_movimiento():
                    (f" — ${costo:,.2f}" if costo else ""))
         import time
         time.sleep(1)
+        st.rerun()
+
+
+def _registrar_uso_revoltura():
+    """Descuenta automaticamente todos los ingredientes de la formula."""
+    import time
+
+    st.info("""
+    **Fórmula revoltura semanal:**
+    6 bultos Maíz (240kg) · 6 bultos Salvado (150kg) · 1 bulto Soya (40kg) · 2kg Sal/Minerales
+    """)
+
+    melaza_litros = st.number_input(
+        "Melaza usada (litros):",
+        min_value=0.0, value=30.0, step=1.0, key="alm_melaza"
+    )
+
+    notas = st.text_input("Notas (opcional):", key="alm_notas_rev")
+
+    if st.button("Registrar uso revoltura", type="primary",
+                 use_container_width=True, key="btn_revoltura"):
+
+        usuario = st.session_state.usuario_nombre
+        fecha = hora_mexico()
+
+        # Descontar ingredientes fijos automaticamente
+        for producto, datos in FORMULA_REVOLTURA.items():
+            execute(
+                """INSERT INTO almacen
+                   (tipo, categoria, producto, cantidad, unidad, costo, notas, usuario_id, fecha)
+                   VALUES ('salida', 'revoltura', %s, %s, %s, NULL, %s, %s, %s)""",
+                (producto, datos["cantidad"], datos["unidad"],
+                 notas or "Uso revoltura semanal", usuario, fecha)
+            )
+
+        # Descontar melaza manual
+        if melaza_litros > 0:
+            execute(
+                """INSERT INTO almacen
+                   (tipo, categoria, producto, cantidad, unidad, costo, notas, usuario_id, fecha)
+                   VALUES ('salida', 'revoltura', 'Melaza', %s, 'litro', NULL, %s, %s, %s)""",
+                (melaza_litros, notas or "Uso revoltura semanal", usuario, fecha)
+            )
+
+        st.success(f"Revoltura semanal registrada — se descontaron todos los ingredientes automáticamente")
+        time.sleep(1.5)
         st.rerun()
 
 
