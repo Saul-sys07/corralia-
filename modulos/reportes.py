@@ -19,9 +19,12 @@ def mostrar_reportes():
         st.rerun()
     st.caption("Panel exclusivo de administracion - Saul")
 
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
-        "Pie de Cria", "Proximos Partos", "Alertas", "Historial", "Asistencia"
+    tab0, tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        "📋 Reporte Mensual", "Pie de Cria", "Proximos Partos", "Alertas", "Historial", "Asistencia"
     ])
+
+    with tab0:
+        _reporte_mensual()
 
     # Tab 1: Estado del pie de cria
     with tab1:
@@ -174,3 +177,128 @@ def mostrar_reportes():
                         c2.image(r['foto_salida'], use_container_width=True)
                     else:
                         c2.caption("Sin foto de salida")
+
+
+def _reporte_mensual():
+    """Reporte mensual limpio para el papá."""
+    from database import fetch_all, fetch_one
+    from datetime import date, datetime
+    from zoneinfo import ZoneInfo
+
+    hoy = date.today()
+
+    # Selector de mes
+    col1, col2 = st.columns(2)
+    mes = col1.selectbox("Mes:", list(range(1, 13)),
+                         index=hoy.month - 1,
+                         format_func=lambda m: ["Enero","Febrero","Marzo","Abril","Mayo","Junio",
+                                                "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"][m-1],
+                         key="rep_mes")
+    anio = col2.number_input("Año:", min_value=2024, max_value=2030,
+                              value=hoy.year, step=1, key="rep_anio")
+
+    nombre_mes = ["Enero","Febrero","Marzo","Abril","Mayo","Junio",
+                  "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"][mes-1]
+
+    st.markdown("---")
+    st.markdown(f"## 🐖 Rancho Yáñez — {nombre_mes} {anio}")
+    st.caption("Atlacomulco, Estado de México")
+    st.markdown("---")
+
+    # ── Inventario actual ─────────────────────────────────────────────────────
+    st.markdown("### 📦 Inventario actual")
+    inv = fetch_all("""
+        SELECT l.tipo_animal, SUM(l.poblacion_actual) AS total
+        FROM lotes l
+        WHERE l.poblacion_actual > 0
+        GROUP BY l.tipo_animal
+        ORDER BY l.tipo_animal
+    """)
+    total_animales = 0
+    for r in inv:
+        st.markdown(f"**{r['tipo_animal']}:** {int(r['total'])} animales")
+        total_animales += int(r['total'])
+    st.markdown(f"**Total en rancho: {total_animales} animales**")
+
+    st.markdown("---")
+
+    # ── Movimientos del mes ───────────────────────────────────────────────────
+    st.markdown("### 📊 Movimientos del mes")
+
+    movs = fetch_all("""
+        SELECT tipo_evento, SUM(cantidad) AS total
+        FROM historial_movimientos
+        WHERE MONTH(fecha) = %s AND YEAR(fecha) = %s
+        GROUP BY tipo_evento
+    """, (mes, anio))
+
+    movs_dict = {m["tipo_evento"]: int(m["total"]) for m in movs}
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("🍼 Nacidos", movs_dict.get("PARTO", 0))
+    col2.metric("💀 Muertes", movs_dict.get("MUERTE", 0))
+    col3.metric("💰 Vendidos", movs_dict.get("VENTA", 0))
+    col4.metric("🔄 Traspasos", movs_dict.get("TRASPASO", 0))
+
+    st.markdown("---")
+
+    # ── Finanzas del mes ──────────────────────────────────────────────────────
+    st.markdown("### 💵 Finanzas del mes")
+
+    # Depositos del mes
+    dep = fetch_one("""
+        SELECT IFNULL(SUM(monto),0) AS t FROM finanzas
+        WHERE tipo='deposito' AND MONTH(fecha)=%s AND YEAR(fecha)=%s
+    """, (mes, anio))
+    total_dep = float(dep["t"]) if dep else 0
+
+    # Ventas del mes
+    ven = fetch_one("""
+        SELECT IFNULL(SUM(total_rancho),0) AS t FROM ventas
+        WHERE MONTH(fecha)=%s AND YEAR(fecha)=%s
+    """, (mes, anio))
+    total_ven = float(ven["t"]) if ven else 0
+
+    # Gastos almacen del mes
+    alm = fetch_one("""
+        SELECT IFNULL(SUM(costo),0) AS t FROM almacen
+        WHERE tipo='entrada' AND costo IS NOT NULL
+        AND MONTH(fecha)=%s AND YEAR(fecha)=%s
+    """, (mes, anio))
+    total_alm = float(alm["t"]) if alm else 0
+
+    # Sueldos del mes
+    sue = fetch_one("""
+        SELECT IFNULL(SUM(monto),0) AS t FROM finanzas
+        WHERE tipo='sueldo' AND MONTH(fecha)=%s AND YEAR(fecha)=%s
+    """, (mes, anio))
+    total_sue = float(sue["t"]) if sue else 0
+
+    total_ingresos = total_dep + total_ven
+    total_gastos = total_alm + total_sue
+    utilidad = total_ven - total_gastos
+
+    st.markdown("**Ingresos:**")
+    col1, col2 = st.columns(2)
+    col1.metric("Depósitos recibidos", f"${total_dep:,.2f}")
+    col2.metric("Ventas del mes", f"${total_ven:,.2f}")
+
+    st.markdown("**Gastos:**")
+    col3, col4 = st.columns(2)
+    col3.metric("Alimento e insumos", f"${total_alm:,.2f}")
+    col4.metric("Sueldos", f"${total_sue:,.2f}")
+
+    st.markdown("---")
+
+    col_u, col_s = st.columns(2)
+    utilidad_color = "normal" if utilidad >= 0 else "inverse"
+    col_u.metric("Utilidad bruta del mes", f"${utilidad:,.2f}",
+                 delta="positiva" if utilidad >= 0 else "negativa",
+                 delta_color=utilidad_color)
+
+    saldo_beyin = total_dep + total_ven - total_alm - total_sue
+    col_s.metric("Saldo con Beyin", f"${saldo_beyin:,.2f}")
+
+    if utilidad >= 0:
+        st.success(f"✅ Mes rentable — utilidad de ${utilidad:,.2f}")
+    else:
+        st.error(f"⚠️ Gastos superan ventas por ${abs(utilidad):,.2f}")
