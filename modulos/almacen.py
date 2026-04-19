@@ -69,12 +69,13 @@ def _get_stock(producto):
 
 
 def _get_saldo_disponible():
-    """Calcula saldo disponible: depósitos - gastos almacén - sueldos."""
+    """Calcula saldo disponible: depósitos + ventas - gastos almacén - sueldos."""
     from database import fetch_one as _fo
     dep  = _fo("SELECT IFNULL(SUM(monto),0) AS t FROM finanzas WHERE tipo='deposito'")
     sue  = _fo("SELECT IFNULL(SUM(monto),0) AS t FROM finanzas WHERE tipo='sueldo'")
     alm  = _fo("SELECT IFNULL(SUM(costo),0) AS t FROM almacen WHERE tipo='entrada' AND costo IS NOT NULL")
-    return float(dep["t"]) - float(sue["t"]) - float(alm["t"])
+    ven  = _fo("SELECT IFNULL(SUM(total_rancho),0) AS t FROM ventas")
+    return float(dep["t"]) + float(ven["t"]) - float(sue["t"]) - float(alm["t"])
 
 
 def mostrar_almacen():
