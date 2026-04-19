@@ -134,7 +134,6 @@ def _registrar_nomina():
         FROM usuarios u
         LEFT JOIN asistencia a ON a.usuario_id = u.id
             AND DATE(a.fecha_entrada) BETWEEN %s AND %s
-            AND a.tipo = 'entrada'
         WHERE u.activo = 1 AND u.rol != 'admin'
         GROUP BY u.id
         ORDER BY u.nombre
