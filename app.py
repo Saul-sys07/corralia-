@@ -23,7 +23,7 @@ st.set_page_config(
     page_title="Corralia v3",
     page_icon="🐖",
     layout="wide",
-    initial_sidebar_state="collapsed",  # Sidebar oculto por default
+    initial_sidebar_state="collapsed",
 )
 
 def _init_session():
@@ -166,7 +166,11 @@ def mostrar_sidebar():
             st.session_state.pagina = "mapa"
             st.rerun()
 
-        # Sin Traspasos en sidebar — se maneja desde tarjetas del mapa
+        # Almacen visible para admin y encargado_general
+        if rol in ("admin", "encargado_general"):
+            if st.button("🏚️ Almacén", use_container_width=True):
+                st.session_state.pagina = "almacen"
+                st.rerun()
 
         if rol == "admin":
             if st.button("📊 Reportes", use_container_width=True):
@@ -184,8 +188,8 @@ def mostrar_sidebar():
             if st.button("👤 Clientes", use_container_width=True):
                 st.session_state.pagina = "clientes"
                 st.rerun()
-            if st.button("🏚️ Almacén", use_container_width=True):
-                st.session_state.pagina = "almacen"
+            if st.button("💵 Finanzas", use_container_width=True):
+                st.session_state.pagina = "finanzas"
                 st.rerun()
 
         st.markdown("---")
@@ -207,11 +211,9 @@ def mostrar_sidebar():
             st.rerun()
 
 def _limpiar_navegacion():
-    """Limpia todos los estados de navegacion."""
     for key in ["corral_presel", "tab_presel", "accion_activa"]:
         st.session_state.pop(key, None)
     st.session_state.pagina = "mapa"
-
 
 def _label_rol(rol: str) -> str:
     labels = {
@@ -321,8 +323,18 @@ def routear_pagina():
         mostrar_clientes()
 
     elif pagina == "almacen":
+        if rol not in ("admin", "encargado_general"):
+            st.error("Acceso restringido.")
+            return
         from modulos.almacen import mostrar_almacen
         mostrar_almacen()
+
+    elif pagina == "finanzas":
+        if rol != "admin":
+            st.error("Acceso restringido.")
+            return
+        from modulos.finanzas import mostrar_finanzas
+        mostrar_finanzas()
 
     elif pagina == "salida":
         from modulos.checador import mostrar_registro_salida
