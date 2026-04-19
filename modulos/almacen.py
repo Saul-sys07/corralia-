@@ -68,9 +68,25 @@ def _get_stock(producto):
     return float(row["stock"]) if row else 0.0
 
 
+def _get_saldo_disponible():
+    """Calcula saldo disponible: depósitos - gastos almacén - sueldos."""
+    from database import fetch_one as _fo
+    dep  = _fo("SELECT IFNULL(SUM(monto),0) AS t FROM finanzas WHERE tipo='deposito'")
+    sue  = _fo("SELECT IFNULL(SUM(monto),0) AS t FROM finanzas WHERE tipo='sueldo'")
+    alm  = _fo("SELECT IFNULL(SUM(costo),0) AS t FROM almacen WHERE tipo='entrada' AND costo IS NOT NULL")
+    return float(dep["t"]) - float(sue["t"]) - float(alm["t"])
+
+
 def mostrar_almacen():
     st.title("Almacén")
     st.caption("Control de alimento e insumos")
+
+    # Saldo disponible — visible para todos
+    saldo = _get_saldo_disponible()
+    if saldo >= 0:
+        st.success(f"💵 Disponible para compras: **${saldo:,.2f}**")
+    else:
+        st.error(f"⚠️ Sin saldo disponible — faltan ${abs(saldo):,.2f}")
 
     tab1, tab2, tab3, tab4 = st.tabs(["Compra", "Hacer Revoltura", "Uso", "Inventario"])
 
