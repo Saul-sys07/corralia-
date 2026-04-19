@@ -302,3 +302,81 @@ def _reporte_mensual():
         st.success(f"✅ Mes rentable — utilidad de ${utilidad:,.2f}")
     else:
         st.error(f"⚠️ Gastos superan ventas por ${abs(utilidad):,.2f}")
+
+    # ── Comparativa mes anterior ──────────────────────────────────────────────
+    mes_ant = mes - 1 if mes > 1 else 12
+    anio_ant = anio if mes > 1 else anio - 1
+    nombre_mes_ant = ["Enero","Febrero","Marzo","Abril","Mayo","Junio",
+                      "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"][mes_ant-1]
+
+    ven_ant = fetch_one("""
+        SELECT IFNULL(SUM(total_rancho),0) AS t FROM ventas
+        WHERE MONTH(fecha)=%s AND YEAR(fecha)=%s
+    """, (mes_ant, anio_ant))
+    total_ven_ant = float(ven_ant["t"]) if ven_ant else 0
+
+    alm_ant = fetch_one("""
+        SELECT IFNULL(SUM(costo),0) AS t FROM almacen
+        WHERE tipo='entrada' AND costo IS NOT NULL
+        AND MONTH(fecha)=%s AND YEAR(fecha)=%s
+    """, (mes_ant, anio_ant))
+    total_alm_ant = float(alm_ant["t"]) if alm_ant else 0
+
+    muertes_ant = fetch_one("""
+        SELECT IFNULL(SUM(cantidad),0) AS t FROM historial_movimientos
+        WHERE tipo_evento='MUERTE' AND MONTH(fecha)=%s AND YEAR(fecha)=%s
+    """, (mes_ant, anio_ant))
+    total_muertes_ant = int(muertes_ant["t"]) if muertes_ant else 0
+
+    vendidos_ant = fetch_one("""
+        SELECT IFNULL(SUM(cantidad),0) AS t FROM historial_movimientos
+        WHERE tipo_evento='VENTA' AND MONTH(fecha)=%s AND YEAR(fecha)=%s
+    """, (mes_ant, anio_ant))
+    total_vendidos_ant = int(vendidos_ant["t"]) if vendidos_ant else 0
+
+    utilidad_ant = total_ven_ant - total_alm_ant
+
+    # Solo mostrar comparativa si hay datos del mes anterior
+    if total_ven_ant > 0 or total_alm_ant > 0:
+        st.markdown("---")
+        st.markdown(f"### 📈 Comparativa vs {nombre_mes_ant} {anio_ant}")
+
+        c1, c2, c3, c4 = st.columns(4)
+        diff_ven = total_ven - total_ven_ant
+        diff_alm = total_alm - total_alm_ant
+        diff_util = utilidad - utilidad_ant
+        diff_muertes = movs_dict.get("MUERTE", 0) - total_muertes_ant
+        diff_vendidos = movs_dict.get("VENTA", 0) - total_vendidos_ant
+
+        c1.metric("Ventas", f"${total_ven:,.0f}",
+                  delta=f"${diff_ven:+,.0f}",
+                  delta_color="normal" if diff_ven >= 0 else "inverse")
+        c2.metric("Gasto alimento", f"${total_alm:,.0f}",
+                  delta=f"${diff_alm:+,.0f}",
+                  delta_color="inverse" if diff_alm > 0 else "normal")
+        c3.metric("Utilidad", f"${utilidad:,.0f}",
+                  delta=f"${diff_util:+,.0f}",
+                  delta_color="normal" if diff_util >= 0 else "inverse")
+        c4.metric("Muertes", movs_dict.get("MUERTE", 0),
+                  delta=f"{diff_muertes:+}",
+                  delta_color="inverse" if diff_muertes > 0 else "normal")
+
+        # Resumen en texto
+        resumen = []
+        if diff_ven > 0:
+            resumen.append(f"✅ Ventas subieron ${diff_ven:,.0f}")
+        elif diff_ven < 0:
+            resumen.append(f"⚠️ Ventas bajaron ${abs(diff_ven):,.0f}")
+        if diff_alm > 0:
+            resumen.append(f"⚠️ Gasto en alimento subió ${diff_alm:,.0f}")
+        elif diff_alm < 0:
+            resumen.append(f"✅ Gasto en alimento bajó ${abs(diff_alm):,.0f}")
+        if diff_muertes > 0:
+            resumen.append(f"⚠️ {diff_muertes} muertes más que el mes anterior")
+        elif diff_muertes < 0:
+            resumen.append(f"✅ {abs(diff_muertes)} muertes menos que el mes anterior")
+
+        for linea in resumen:
+            st.markdown(linea)
+    else:
+        st.info(f"Sin datos de {nombre_mes_ant} {anio_ant} para comparar — la comparativa aparecerá desde el segundo mes.")
