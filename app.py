@@ -172,6 +172,12 @@ def mostrar_sidebar():
                 st.session_state.pagina = "almacen"
                 st.rerun()
 
+        # Vacunas para encargados de zona y admin
+        if rol in ("admin", "encargado_general", "parideras", "crecimiento", "gestacion"):
+            if st.button("💉 Vacunas", use_container_width=True):
+                st.session_state.pagina = "vacunas"
+                st.rerun()
+
         if rol == "admin":
             if st.button("📊 Reportes", use_container_width=True):
                 st.session_state.pagina = "reportes"
@@ -335,6 +341,13 @@ def routear_pagina():
             return
         from modulos.finanzas import mostrar_finanzas
         mostrar_finanzas()
+
+    elif pagina == "vacunas":
+        if rol not in ("admin", "encargado_general", "parideras", "crecimiento", "gestacion"):
+            st.error("Acceso restringido.")
+            return
+        from modulos.vacunas import mostrar_vacunas
+        mostrar_vacunas()
 
     elif pagina == "salida":
         from modulos.checador import mostrar_registro_salida
